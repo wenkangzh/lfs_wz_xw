@@ -1,6 +1,8 @@
 #include "log.h"
 
 Flash flash = NULL;
+struct segment *tail_seg = NULL;
+int next_block_in_tail = 0;
 
 /*
  *----------------------------------------------------------------------
@@ -18,10 +20,32 @@ Flash flash = NULL;
  *
  *----------------------------------------------------------------------
  */
-int Log_Read(uint32_t logAddress, int length, void* buffer)
+int Log_Read(struct addr *logAddress, int length, void* buffer)
 {
-	Flash_Read(flash, 0, 1, buffer);
-	return 0;
+	// if the block we need to find is in the "tail" segment, just read from the tail cache.
+	if(logAddress->seg_num == tail_seg->seg_num){
+		void *block_to_copy = tail_seg->blocks + (lfs_sb->b_size * FLASH_SECTOR_SIZE) * (logAddress->block_num-1);
+		memcpy(buffer, block_to_copy, (lfs_sb->b_size * FLASH_SECTOR_SIZE));
+		return 0;
+	}
+
+	// TODO if the block we need to find is in the segment cache, just read from the cache. 
+	if(1){
+
+	}
+
+	u_int sector_offset = logAddr_To_Sectors(logAddress);
+	// before calling Flash_Read, need to get buffer in Flash_Read enough space to read in.
+	u_int sector_n = length / FLASH_SECTOR_SIZE + (length % FLASH_SECTOR_SIZE == 0 ? 0 : 1);
+	void *temp = malloc(FLASH_SECTOR_SIZE * sector_n);
+	int i = Flash_Read(flash, sector_offset, sector_n, temp);
+	if(i == 1){
+		printf("ERROR: %s\n", strerror(errno));
+		return i;
+	}
+	memcpy(buffer, temp, length);
+	// when returning the buffer as a read result, need to fix the size of buffer to be length
+	return i;
 }
 
 /*
@@ -38,39 +62,46 @@ int Log_Read(uint32_t logAddress, int length, void* buffer)
  *		buffer: 		the data to write
  *		&logAddress:	indicate the log segment and block number within the segment
  *  
- * Return: 
+ * Return: -1 error
  *
  *----------------------------------------------------------------------
  */
-int Log_Write(int inum, int block, int length, void* buffer, uint32_t* logAddress)
+int Log_Write(int inum, int block, int length, void* buffer, struct addr **logAddress)
 {
 	if(flash == NULL){
-		printf("Flash is not initialized!\n");
-	}
-	struct superblock *sb = malloc(sizeof(struct superblock));
-	get_superblock(sb);
-
-	// Find the segment to be written
-	struct addr *insert_ptr = malloc(sizeof(struct addr));
-	printf("%ld %ld\n", sb->ck_region_0.timestamp, sb->ck_region_1.timestamp);
-	if(sb->ck_region_0.timestamp == 0 && sb->ck_region_1.timestamp == 0){
-		insert_ptr->seg_num =LFS_SEG(0);
-		insert_ptr->block_num = 0;
-		printf("A");
-	}else if(sb->ck_region_0.timestamp == 0){
-		insert_ptr = &(sb->ck_region_1.last_seg_addr);
-		printf("B");
-	}else{
-		insert_ptr = difftime(sb->ck_region_0.timestamp, sb->ck_region_1.timestamp) < 0 ? &(sb->ck_region_1.last_seg_addr) : &(sb->ck_region_0.last_seg_addr);
-		printf("C");
+		printf("LOG_WRITE: Flash is not initialized!\n");
+		return -1;
 	}
 
-	insert_ptr->seg_num = (insert_ptr->seg_num) % (sb->seg_size - 1);
+	// length validation for maximum size of block, 1024 bytes by default
+	if(length > lfs_sb->b_size * FLASH_SECTOR_SIZE){
+		printf("LOG_WRITE: length too large.\n");
+		return -1;
+	}
 
-	// Write to Flash
-	printf("sector offset: %d %d %d\n", insert_ptr->seg_num, sb->seg_size, sb->b_size);
-	printf("sector count: %d\n", length / FLASH_SECTOR_SIZE + (length % FLASH_SECTOR_SIZE == 0 ? 0 : 1));
-	return Flash_Write(flash, LFS_SEG_TO_FLASH_SECTOR(insert_ptr->seg_num, sb->seg_size, sb->b_size), length / FLASH_SECTOR_SIZE + (length % FLASH_SECTOR_SIZE == 0 ? 0 : 1), buffer);
+	// insert into tail_seg
+	void *next_block = tail_seg->blocks + (lfs_sb->b_size * FLASH_SECTOR_SIZE) * next_block_in_tail;
+	memcpy(next_block, buffer, length);
+
+	(*logAddress)->seg_num = tail_seg->seg_num;
+	(*logAddress)->block_num = next_block_in_tail++;
+
+	int i;
+	// check if tail_seg is full, TODO RESERVE 1 block for checkpoint region.
+	if (next_block_in_tail == lfs_sb->seg_size - 2){
+		i = Flash_Write(flash, segNum_To_Sectors(tail_seg->seg_num), lfs_sb->seg_size * lfs_sb->b_size, buffer);
+		if(i != 0){
+			printf("ERROR: %s\n", strerror(errno));
+			return i;
+		}
+		tail_seg->seg_num++; // TODO get next segment number from most recent checkpoint region. 
+		memset(tail_seg->blocks, 0, lfs_sb->seg_size * lfs_sb->b_size * FLASH_SECTOR_SIZE);
+		next_block_in_tail = 0;
+
+		// TODO add this segment to segment cache. 
+	}
+
+	return i;
 }
 
 /*
@@ -93,18 +124,18 @@ int Log_Free(uint32_t logAddress, int length)
 	return 0;
 }
 
-
-
-void get_superblock(struct superblock *sb)
+void update_sb()
 {
-	void *buffer = malloc(FLASH_SECTOR_SIZE * 64);
-	Flash_Read(flash, 0, 64, buffer);
-	uint16_t *seg_size = (uint16_t*) (buffer);
-	uint16_t *b_size = (uint16_t*) (buffer + sizeof(uint16_t));
-	int sectors = *seg_size * *b_size;
-	void *temp = malloc(sectors * FLASH_SECTOR_SIZE);
-	// printf("%d\n", sectors);
-	Flash_Read(flash, 0, sectors, temp);
-	memcpy(sb, temp, sizeof(struct superblock));
-
+	Flash_Write(flash, 0, lfs_sb->seg_size * lfs_sb->b_size * lfs_sb->seg_num, lfs_sb);
 }
+
+int logAddr_To_Sectors(struct addr *addr)
+{
+	return addr->seg_num * lfs_sb->seg_size * lfs_sb->b_size + addr->block_num * lfs_sb->b_size;
+}
+
+int segNum_To_Sectors(uint16_t seg_num)
+{
+	return seg_num * lfs_sb->seg_size * lfs_sb->b_size;
+}
+

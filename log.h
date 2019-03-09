@@ -14,17 +14,31 @@
 #include <string.h>
 #include "lfs.h"
 #include <time.h>
+#include <errno.h>
 
 extern Flash flash;
+extern struct segment *tail_seg;
 
 #define SUPERBLOCK_SEG_SIZE 1
 #define LFS_SEG(x) x+SUPERBLOCK_SEG_SIZE
-#define LFS_SEG_TO_FLASH_SECTOR(lfs_seg_num, lfs_blk_in_seg, lfs_sector_in_blk) lfs_seg_num * lfs_blk_in_seg * lfs_sector_in_blk
+// #define LFS_SEG_TO_FLASH_SECTOR(lfs_seg_num, lfs_blk_in_seg, lfs_sector_in_blk) lfs_seg_num * lfs_blk_in_seg * lfs_sector_in_blk
+// #define LFS_ADDR_TO_FLASH_SECTOR(lfs_seg_num, lfs_blk_num, lfs_blk_in_seg, lfs_sector_in_blk) lfs_seg_num * lfs_blk_in_seg * lfs_sector_in_blk + lfs_blk_num * lfs_sector_in_blk
 
-int Log_Read(uint32_t logAddress, int length, void* buffer);
-int Log_Write(int inum, int block, int length, void* buffer, uint32_t* logAddress);
+#define BLOCK_UNUSED 0
+#define BLOCK_DATA 1
+#define BLOCK_IFILE 2
+
+
+struct segment{
+	uint16_t seg_num;				// the segment number of this segment
+	void **blocks;					// blocks in 1 segment
+};
+
+int Log_Read(struct addr *logAddress, int length, void* buffer);
+int Log_Write(int inum, int block, int length, void* buffer, struct addr **logAddress);
 int Log_Free(uint32_t logAddress, int length);
-
-void get_superblock(struct superblock *sb);
+void update_sb();
+int logAddr_To_Sectors(struct addr *addr);
+int segNum_To_Sectors(uint16_t seg_num);
 
 #endif
