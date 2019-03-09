@@ -24,7 +24,10 @@ int Log_Read(struct addr *logAddress, int length, void* buffer)
 {
 	// if the block we need to find is in the "tail" segment, just read from the tail cache.
 	if(logAddress->seg_num == tail_seg->seg_num){
-		void *block_to_copy = tail_seg->blocks + (lfs_sb->b_size * FLASH_SECTOR_SIZE) * (logAddress->block_num-1);
+		printf("READing from tail cache.\n");
+		printf("tail seg num: %u\n", tail_seg->seg_num);
+		printf("logAddress: %u %u\n", logAddress->seg_num, logAddress->block_num);
+		void *block_to_copy = tail_seg->blocks + (lfs_sb->b_size * FLASH_SECTOR_SIZE) * (logAddress->block_num);
 		memcpy(buffer, block_to_copy, (lfs_sb->b_size * FLASH_SECTOR_SIZE));
 		return 0;
 	}
@@ -81,24 +84,28 @@ int Log_Write(int inum, int block, int length, void* buffer, struct addr **logAd
 
 	// insert into tail_seg
 	void *next_block = tail_seg->blocks + (lfs_sb->b_size * FLASH_SECTOR_SIZE) * next_block_in_tail;
+	// printf("HEAD: %p NEXT: %p, skipped %u\n", tail_seg->blocks, next_block, (lfs_sb->b_size * FLASH_SECTOR_SIZE) * next_block_in_tail);
 	memcpy(next_block, buffer, length);
 
 	(*logAddress)->seg_num = tail_seg->seg_num;
 	(*logAddress)->block_num = next_block_in_tail++;
 
-	int i;
+	int i = 0;
 	// check if tail_seg is full, TODO RESERVE 1 block for checkpoint region.
-	if (next_block_in_tail == lfs_sb->seg_size - 2){
-		i = Flash_Write(flash, segNum_To_Sectors(tail_seg->seg_num), lfs_sb->seg_size * lfs_sb->b_size, buffer);
+	if (next_block_in_tail == lfs_sb->seg_size - 1){
+		printf("WRITing to FLASH. %d %u\n", segNum_To_Sectors(tail_seg->seg_num), lfs_sb->seg_size * lfs_sb->b_size);
+		i = Flash_Write(flash, segNum_To_Sectors(tail_seg->seg_num), lfs_sb->seg_size * lfs_sb->b_size, tail_seg->blocks);
 		if(i != 0){
 			printf("ERROR: %s\n", strerror(errno));
 			return i;
 		}
+
 		tail_seg->seg_num++; // TODO get next segment number from most recent checkpoint region. 
 		memset(tail_seg->blocks, 0, lfs_sb->seg_size * lfs_sb->b_size * FLASH_SECTOR_SIZE);
 		next_block_in_tail = 0;
 
 		// TODO add this segment to segment cache. 
+
 	}
 
 	return i;

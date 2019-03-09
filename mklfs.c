@@ -54,14 +54,14 @@ int main(int argc, char *argv[])
 	}
 	// create done. 
 	// now do initialization of the LFS
-	/*struct superblock *superblock = malloc(sizeof(struct superblock));
+	struct superblock *superblock = malloc(sizeof(struct superblock));
 	superblock->seg_size = sizeof_segment;
 	superblock->b_size = sizeof_block;
 	superblock->seg_num = sizeof_flash;
 	superblock->sb_seg_num = SUPERBLOCK_SEG_SIZE;
-	superblock->checkpoint_addr.seg_num = LFS_SEG(0);
+	superblock->checkpoint_addr.seg_num = 0;
 	superblock->checkpoint_addr.block_num = 0;
-
+	/*
 	struct checkpoint_region *cp0 = malloc(sizeof(struct checkpoint_region));
 	cp0->timestamp = time(NULL);
 	cp0->last_seg_addr.seg_num = LFS_SEG(0);

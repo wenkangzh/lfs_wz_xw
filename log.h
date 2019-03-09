@@ -31,7 +31,7 @@ extern struct segment *tail_seg;
 
 struct segment{
 	uint16_t seg_num;				// the segment number of this segment
-	void **blocks;					// blocks in 1 segment
+	void *blocks;					// blocks in 1 segment
 };
 
 int Log_Read(struct addr *logAddress, int length, void* buffer);
