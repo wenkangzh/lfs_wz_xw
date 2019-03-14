@@ -21,7 +21,10 @@
  */
 int File_Create(int inum, int type)
 {
-	// if the file is actually a directory, then the content of the "special file" has nothing to do with 
+	// if the file is actually a directory, then the content of the "special file" is array of <name, inum> pairs
+	// i would guess that the format of the special file is up to us/designers
+	// since the inodes are stored in a special ifile, which is in the most recent checkpoint, 
+	// we need to change(or actually append) the ifile, add TODO
 }
 
 /*
@@ -43,7 +46,7 @@ int File_Create(int inum, int type)
  */
 int File_Write(int inum, int offset, int length, void *buffer)
 {
-
+	
 }
 
 /*
@@ -65,7 +68,12 @@ int File_Write(int inum, int offset, int length, void *buffer)
  */
 int File_Read(int inum, int offset, int length, void *buffer)
 {
-
+	// For reading a file, the process may be:
+	// 1. Locate the ifile
+	// 2. Using the given inum, locate the inode(inside the ifile) of the wanted file
+	// 3. In the inode, there are four direct block pointer and (TODO in phase 2, indirect block)
+	// 4. Calculate which and how many block need to be read, get them using Log_Read()
+	// 5. memcpy() the wanted data starting at offset and length bytes into buffer
 }
 
 /*
