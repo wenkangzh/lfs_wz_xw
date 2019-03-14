@@ -21,7 +21,7 @@
  */
 int File_Create(int inum, int type)
 {
-
+	// if the file is actually a directory, then the content of the "special file" has nothing to do with 
 }
 
 /*
