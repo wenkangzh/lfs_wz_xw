@@ -22,7 +22,7 @@ endif
 
 CFLAGS = -g -Wall -std=gnu99 -D_DEBUG_ -DVNL $(ARCH)
 
-lfs_SRCS = flash.c log.c lfs.c
+lfs_SRCS = flash.c log.c lfs.c file.c
 lfs_OBJS = $(patsubst %.c,%.o,$(lfs_SRCS))
 lfs_DEPS = $(patsubst %.c,.%.d,$(lfs_SRCS))
 
