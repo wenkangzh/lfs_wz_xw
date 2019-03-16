@@ -16,16 +16,36 @@ void init()
 	init_sb();
 
 	// TODO - need to restore information in checkpoint region in memory.
-	// cp_region = malloc(sizeof(struct checkpoint_region));
+	cp_region = malloc(sizeof(struct checkpoint_region));
+
 	// Log_Read(&(lfs_sb->checkpoint_addr), sizeof(struct checkpoint_region), cp_region);
 
+	u_int sector_offset = logAddr_To_Sectors(&(lfs_sb->checkpoint_addr));
+	// before calling Flash_Read, need to get buffer in Flash_Read enough space to read in.
+	u_int sector_n = sizeof(struct checkpoint_region) / FLASH_SECTOR_SIZE + (sizeof(struct checkpoint_region) % FLASH_SECTOR_SIZE == 0 ? 0 : 1);
+	void *temp = malloc(FLASH_SECTOR_SIZE * sector_n);
+	if(Flash_Read(flash, sector_offset, sector_n, temp) == 1)
+		printf("ERROR: %s\n", strerror(errno));
+	memcpy(cp_region, temp, sizeof(struct checkpoint_region));
 
+	printf("---------- CP region ----------\n");
+	printf("timestamp: %ld\n", cp_region->timestamp);
+	printf("LSA-seg_num: %u\n", cp_region->last_seg_addr.seg_num);
+	printf("LSA-block: %u\n", cp_region->last_seg_addr.block_num);
+	printf("ifile-inode-inum: %u\n", cp_region->ifile_inode.inum);
+	printf("ifile-inode-type: %u\n", cp_region->ifile_inode.type);
+	printf("ifile-inode-size: %d\n", cp_region->ifile_inode.size);
+	printf("ifile-inode-addr-seg: %u\n", cp_region->ifile_inode.ptrs[0].seg_num);
+	printf("ifile-inode-addr-block: %u\n", cp_region->ifile_inode.ptrs[0].block_num);
+	printf("-------------------------------\n");
 
 	tail_seg = malloc(sizeof(struct segment));
 	tail_seg->seg_num = cp_region == NULL ? LFS_SEG(0) : cp_region->last_seg_addr.seg_num + 1; // TODO find next availble segment
 	tail_seg->blocks = malloc(lfs_sb->seg_size * lfs_sb->b_size * FLASH_SECTOR_SIZE);
 	memset(tail_seg->blocks, 0, lfs_sb->seg_size * lfs_sb->b_size * FLASH_SECTOR_SIZE); // clean the memory
 	// here the blocks in the tail segment are all allocated memory space.
+
+
 }
 
 void init_sb()
@@ -59,15 +79,15 @@ int main(int argc, char const *argv[])
 {
 	init();
 	print_sb();
-	int x;
-	for(x = 0 ; x <70; x++){
-		char *a = (char *) malloc(sizeof(char) * 1000);
-		memset(a, x+33, sizeof(char) * 1000);
+	// int x;
+	// for(x = 0 ; x <70; x++){
+	// 	char *a = (char *) malloc(sizeof(char) * 1000);
+	// 	memset(a, x+33, sizeof(char) * 1000);
 
-		struct addr *logAddress = malloc(sizeof(struct addr));
-		Log_Write(1, 1, sizeof(char) * 1000, a, &logAddress);
-		printf("wrote to logAddress: %u %u\n", logAddress->seg_num, logAddress->block_num);
-	}
+	// 	struct addr *logAddress = malloc(sizeof(struct addr));
+	// 	Log_Write(1, 1, sizeof(char) * 1000, a, &logAddress);
+	// 	printf("wrote to logAddress: %u %u\n", logAddress->seg_num, logAddress->block_num);
+	// }
 
 
 
@@ -79,6 +99,8 @@ int main(int argc, char const *argv[])
 	// printf("%s\n", (char *) result);
 
 
-
+	if (Flash_Close(flash) != 0) {
+		printf("ERROR: %s\n", strerror(errno));
+	}
 	return 0;
 }

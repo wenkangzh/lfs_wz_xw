@@ -22,6 +22,7 @@ int next_block_in_tail = 0;
  */
 int Log_Read(struct addr *logAddress, int length, void* buffer)
 {
+	printf("READING from %u %u\n", logAddress->seg_num, logAddress->block_num);
 	// if the block we need to find is in the "tail" segment, just read from the tail cache.
 	if(logAddress->seg_num == tail_seg->seg_num){
 		printf("READing from tail cache.\n");
@@ -49,6 +50,29 @@ int Log_Read(struct addr *logAddress, int length, void* buffer)
 	memcpy(buffer, temp, length);
 	// when returning the buffer as a read result, need to fix the size of buffer to be length
 	return i;
+}
+
+
+// update the block in the ifile, return the block
+void updateInode(int inum, int block, struct addr *block_addr, int length)
+{
+	// 1. Find the block in ifile where the inode locates.
+	void *buffer = malloc(lfs_sb->b_size * FLASH_SECTOR_SIZE);
+	// find the block number of ifile:
+	int blk_num = inum * sizeof(struct inode) / (lfs_sb->b_size * FLASH_SECTOR_SIZE);
+	// read the necessary file block from ifile for reading the inode given the inum
+	if(Log_Read(&cp_region->ifile_inode.ptrs[blk_num], lfs_sb->b_size * FLASH_SECTOR_SIZE, buffer) == -1){ // get data of the ifile block
+			printf("updateInode: Read target block of iFile failed.\n");
+	}
+	// 2. Find inode with inum in ifile.
+	int offset = inum * sizeof(struct inode) % (lfs_sb->b_size * FLASH_SECTOR_SIZE);
+	struct inode *i_inode = (struct inode *) (buffer + offset);
+	// 3. Update the address of the file block "block"
+	i_inode->ptrs[block].seg_num = block_addr->seg_num;
+	i_inode->ptrs[block].block_num = block_addr->block_num;
+	i_inode->size += length; // length > 0 if the size increase; length < 0 if the size decrease;
+	// writing the file block of ifile in the log.
+	Log_Write(LFS_IFILE_INUM, blk_num, lfs_sb->b_size * FLASH_SECTOR_SIZE, buffer, &(cp_region->ifile_inode.ptrs[blk_num]));
 }
 
 /*
@@ -107,6 +131,10 @@ int Log_Write(int inum, int block, int length, void* buffer, struct addr **logAd
 		// TODO add this segment to segment cache. 
 
 	}
+
+	// update the inode for the file
+	if(inum != LFS_IFILE_INUM)
+		updateInode(inum, block, (*logAddress), length);
 
 	return i;
 }

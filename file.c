@@ -21,10 +21,14 @@
  */
 int File_Create(int inum, int type)
 {
+
 	// if the file is actually a directory, then the content of the "special file" is array of <name, inum> pairs
 	// i would guess that the format of the special file is up to us/designers
-	// since the inodes are stored in a special ifile, which is in the most recent checkpoint, 
-	// we need to change(or actually append) the ifile, add TODO
+	// since the inodes are stored in ifile, whose inode is in the most recent checkpoint, 
+
+	// we need to change(or actually append) the ifile
+
+	return 0;
 }
 
 /*
@@ -46,7 +50,7 @@ int File_Create(int inum, int type)
  */
 int File_Write(int inum, int offset, int length, void *buffer)
 {
-	
+	return 0;
 }
 
 /*
@@ -69,11 +73,42 @@ int File_Write(int inum, int offset, int length, void *buffer)
 int File_Read(int inum, int offset, int length, void *buffer)
 {
 	// For reading a file, the process may be:
-	// 1. Locate the ifile
+	// 1. Find the ifile. Note: inode of ifile is in the checkpoint. (Thus we could keep the inode of the ifile in memory.)
 	// 2. Using the given inum, locate the inode(inside the ifile) of the wanted file
 	// 3. In the inode, there are four direct block pointer and (TODO in phase 2, indirect block)
 	// 4. Calculate which and how many block need to be read, get them using Log_Read()
 	// 5. memcpy() the wanted data starting at offset and length bytes into buffer
+
+
+	// locate ifile and get the inode of inum
+	void  *ifile_blk = malloc(lfs_sb->b_size * FLASH_SECTOR_SIZE);
+	int blk_in_ifile = (inum * sizeof(struct inode)) / (FLASH_SECTOR_SIZE * lfs_sb->b_size);
+	struct addr *ifile_addr = malloc(sizeof(struct addr));
+	ifile_addr->seg_num = cp_region->ifile_inode[blk_in_ifile].seg_num;
+	ifile_addr->block_num = (inum * sizeof(struct inode)) % (FLASH_SECTOR_SIZE * lfs_sb->b_size);
+	Log_Read(ifile_addr, FLASH_SECTOR_SIZE * lfs_sb->b_size, ifile_blk);
+	struct inode *inode_inum = ifile_blk + (inum * sizeof(struct inode)) % (FLASH_SECTOR_SIZE * lfs_sb->b_size)
+
+	// read block of the file
+	int data_read = 0;
+	int remaining_length = length - data_read;
+	int i_blk = offset / (FLASH_SECTOR_SIZE * lfs_sb->b_size;
+	while(remaining_length != 0){
+		data_read += File_Read_Helper(inode_inum->ptrs[i_blk], 
+						(offset + data_read) % (FLASH_SECTOR_SIZE * lfs_sb->b_size), remining_length, buffer + data_read);
+		remaining_length = length - data_read;
+		i_blk ++;
+	}
+	return 0;
+}
+
+
+// Read data from given offset to the end of the block
+int File_Read_Helper(struct addr *blk_addr, int offset, int remining_length, void *buffer){
+	int read_length = FLASH_SECTOR_SIZE * lfs_sb->b_size - offset; // Calculate how many bytes we need read
+	if(read_length > remining_length) read_length = remining_length;
+	Log_Read(blk_addr, read_length, buffer);
+	return read_length;
 }
 
 /*
@@ -92,5 +127,5 @@ int File_Read(int inum, int offset, int length, void *buffer)
  */
 int File_Free(int inum)
 {
-
+	return 0;
 }
