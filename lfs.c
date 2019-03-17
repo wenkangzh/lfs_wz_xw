@@ -8,12 +8,16 @@
 
 struct superblock *lfs_sb = NULL;
 struct checkpoint_region *cp_region = NULL;
+int s_block_byte = 0;
 
 void init()
 {
 	u_int *blocks_n = malloc(sizeof(u_int));
 	flash = Flash_Open("file", FLASH_ASYNC, blocks_n);
 	init_sb();
+
+	// Compute size of a block in Byte
+	s_block_byte = lfs_sb->b_size * FLASH_SECTOR_SIZE;
 
 	// TODO - need to restore information in checkpoint region in memory.
 	cp_region = malloc(sizeof(struct checkpoint_region));
@@ -28,16 +32,7 @@ void init()
 		printf("ERROR: %s\n", strerror(errno));
 	memcpy(cp_region, temp, sizeof(struct checkpoint_region));
 
-	printf("---------- CP region ----------\n");
-	printf("timestamp: %ld\n", cp_region->timestamp);
-	printf("LSA-seg_num: %u\n", cp_region->last_seg_addr.seg_num);
-	printf("LSA-block: %u\n", cp_region->last_seg_addr.block_num);
-	printf("ifile-inode-inum: %u\n", cp_region->ifile_inode.inum);
-	printf("ifile-inode-type: %u\n", cp_region->ifile_inode.type);
-	printf("ifile-inode-size: %d\n", cp_region->ifile_inode.size);
-	printf("ifile-inode-addr-seg: %u\n", cp_region->ifile_inode.ptrs[0].seg_num);
-	printf("ifile-inode-addr-block: %u\n", cp_region->ifile_inode.ptrs[0].block_num);
-	printf("-------------------------------\n");
+	print_cp_region();
 
 	tail_seg = malloc(sizeof(struct segment));
 	tail_seg->seg_num = cp_region == NULL ? LFS_SEG(0) : cp_region->last_seg_addr.seg_num + 1; // TODO find next availble segment
@@ -74,30 +69,59 @@ void print_sb()
 	printf("CK_addr_blo: %u\n", lfs_sb->checkpoint_addr.block_num);
 }
 
+void print_cp_region()
+{
+	printf("---------- CP region ----------\n");
+	printf("timestamp: %ld\n", cp_region->timestamp);
+	printf("LSA-seg_num: %u\n", cp_region->last_seg_addr.seg_num);
+	printf("LSA-block: %u\n", cp_region->last_seg_addr.block_num);
+	printf("ifile-inode-inum: %u\n", cp_region->ifile_inode.inum);
+	printf("ifile-inode-type: %u\n", cp_region->ifile_inode.type);
+	printf("ifile-inode-size: %d\n", cp_region->ifile_inode.size);
+	printf("ifile-inode-addr-seg: %u\n", cp_region->ifile_inode.ptrs[0].seg_num);
+	printf("ifile-inode-addr-block: %u\n", cp_region->ifile_inode.ptrs[0].block_num);
+	printf("-------------------------------\n");
+}
+
+void print_inode(struct inode *inode)
+{
+	printf("\t----- inode -----\n");
+	printf("\t inum: %u\n", inode->inum);
+	printf("\t type: %u\n", inode->type);
+	printf("\t size: %u\n", inode->size);
+	printf("\t addr0: %u %u\n", inode->ptrs[0].seg_num, inode->ptrs[0].block_num);
+	printf("\t addr1: %u %u\n", inode->ptrs[1].seg_num, inode->ptrs[1].block_num);
+	printf("\t addr1: %u %u\n", inode->ptrs[2].seg_num, inode->ptrs[2].block_num);
+	printf("\t addr1: %u %u\n", inode->ptrs[3].seg_num, inode->ptrs[3].block_num);
+	printf("\t-----------------\n");
+}
+
 
 int main(int argc, char const *argv[])
 {
 	init();
 	print_sb();
-	// int x;
-	// for(x = 0 ; x <70; x++){
-	// 	char *a = (char *) malloc(sizeof(char) * 1000);
-	// 	memset(a, x+33, sizeof(char) * 1000);
+	
 
-	// 	struct addr *logAddress = malloc(sizeof(struct addr));
-	// 	Log_Write(1, 1, sizeof(char) * 1000, a, &logAddress);
-	// 	printf("wrote to logAddress: %u %u\n", logAddress->seg_num, logAddress->block_num);
-	// }
+	for (int i = 0; i < 40; ++i)
+	{
+		File_Create(i+1, LFS_FILE_TYPE_FILE);
+	}
 
+	for (int i = 0; i < 40; ++i)
+	{
+		char a = (char) i+48;
+		File_Write(i+1, 0, 1, &a);
+	}
 
+	for (int i = 0; i < 40; ++i)
+	{
+		void *result = malloc(2);
+		File_Read(i+1, 0, 1, result);
+		printf("RESULT: %s\n", (char *) result);
+	}
 
-
-
-	// 
-	// void *result = malloc(sizeof(char) * 1000);
-	// Log_Read(logAddress, sizeof(char) * 1000, result);
-	// printf("%s\n", (char *) result);
-
+	print_cp_region();
 
 	if (Flash_Close(flash) != 0) {
 		printf("ERROR: %s\n", strerror(errno));

@@ -9,12 +9,12 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#include "flash.h"
 #include <stdlib.h>
 #include <string.h>
-#include "lfs.h"
 #include <time.h>
 #include <errno.h>
+#include "flash.h"
+#include "lfs.h"
 
 extern Flash flash;
 extern struct segment *tail_seg;
@@ -27,7 +27,7 @@ extern struct segment *tail_seg;
 #define BLOCK_UNUSED 0
 #define BLOCK_DATA 1
 #define BLOCK_IFILE 2
-
+struct addr;
 
 struct segment{
 	uint16_t seg_num;				// the segment number of this segment
@@ -35,10 +35,9 @@ struct segment{
 };
 
 int Log_Read(struct addr *logAddress, int length, void* buffer);
-int Log_Write(int inum, int block, int length, void* buffer, struct addr **logAddress);
+int Log_Write(int inum, int block, int length, void* buffer, struct addr *logAddress);
 int Log_Free(uint32_t logAddress, int length);
 void update_sb();
 int logAddr_To_Sectors(struct addr *addr);
 int segNum_To_Sectors(uint16_t seg_num);
-
 #endif

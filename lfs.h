@@ -9,12 +9,13 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "flash.h"
-#include "file.h"
 #include <stdlib.h>
 #include <string.h>
+#include "file.h"
 
 extern struct superblock *lfs_sb;
 extern struct checkpoint_region *cp_region;
+extern int s_block_byte;
 
 #define LFS_IFILE_INUM 0
 #define LFS_ROOT_INUM 1
@@ -63,5 +64,11 @@ struct dir_entry{
 };
 
 void init_sb();
+void print_sb();
+void print_cp_region();
+void print_inode(struct inode *inode);
+
+
+
 
 #endif
