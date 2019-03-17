@@ -1,5 +1,6 @@
 #ifndef FILE_H
 #define FILE_H
+#define FUSE_USE_VERSION 26
 
 #include "lfs.h"
 #include "log.h"

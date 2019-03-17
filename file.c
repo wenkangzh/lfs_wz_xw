@@ -133,8 +133,9 @@ int File_Write_Helper(int inum, int block, struct addr *blk_addr, int offset, in
 	if(write_length > remaining_length) write_length = remaining_length;
 	void* modificaition = block_data + offset;
 	memcpy(modificaition, buffer, write_length);
+	printf("ØØØØØØØØØØFile_Wriet_Helper: %s\n", (char *) block_data);
 	// Write new data of block
-	Log_Write(inum, block, write_length, block_data, blk_addr);
+	Log_Write(inum, block, s_block_byte, block_data, blk_addr);
 	return write_length;
 }
 

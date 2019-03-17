@@ -3,6 +3,7 @@
 *	For CSc 552 LFS Project.
 *	
 */
+#define FUSE_USE_VERSION 26
 #ifndef LFS_H
 #define LFS_H
 
@@ -12,6 +13,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "file.h"
+#include <fuse.h>
+#include <string.h>
+#include <fcntl.h>
 
 extern struct superblock *lfs_sb;
 extern struct checkpoint_region *cp_region;
@@ -67,8 +71,6 @@ void init_sb();
 void print_sb();
 void print_cp_region();
 void print_inode(struct inode *inode);
-
-
 
 
 #endif

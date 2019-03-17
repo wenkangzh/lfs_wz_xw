@@ -3,7 +3,7 @@
 *	For CSc 552 LFS Project.
 *	
 */
-
+#define FUSE_USE_VERSION 26
 #ifndef LOG_H
 #define LOG_H
 
