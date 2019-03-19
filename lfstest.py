@@ -204,15 +204,15 @@ class TestBasic(TestBase):
     #     self.assertEqual(s.st_size, 5)
 
 
-    def test_13_stat_times(self):
-        global options
-        path = os.path.join(options.mount, "foo")
-        fd = open(path, "w")
-        fd.write("hello")
-        fd.close()
-        s = os.stat(path)
-        self.assertEqual(int(s.st_atime), int(s.st_mtime))
-        self.assertEqual(int(s.st_atime), int(s.st_ctime))
+    # def test_13_stat_times(self):
+    #     global options
+    #     path = os.path.join(options.mount, "foo")
+    #     fd = open(path, "w")
+    #     fd.write("hello")
+    #     fd.close()
+    #     s = os.stat(path)
+    #     self.assertEqual(int(s.st_atime), int(s.st_mtime))
+    #     self.assertEqual(int(s.st_atime), int(s.st_ctime))
 
     # def test_14_truncate_to_zero(self):
     #     global options
@@ -256,24 +256,24 @@ class TestBasic(TestBase):
     #     fd.close()
     #     self.assertEqual(contents, "hello\x00\x00\x00\x00\x00")
 
-    # def test_17_multiple_files(self):
-    #     global options
-    #     path1 = os.path.join(options.mount, "foo")
-    #     fd = open(path1, "w")
-    #     fd.write("hello")
-    #     fd.close()
-    #     path2 = os.path.join(options.mount, "bar")
-    #     fd = open(path2, "w")
-    #     fd.write("goodbye")
-    #     fd.close()
-    #     fd = open(path1, "r")
-    #     contents1 = fd.read()
-    #     fd.close()
-    #     fd = open(path2, "r")
-    #     contents2 = fd.read()
-    #     fd.close()
-    #     self.assertEqual(contents1, "hello")
-    #     self.assertEqual(contents2, "goodbye")
+    def test_17_multiple_files(self):
+        global options
+        path1 = os.path.join(options.mount, "foo")
+        fd = open(path1, "w")
+        fd.write("hello")
+        fd.close()
+        path2 = os.path.join(options.mount, "bar")
+        fd = open(path2, "w")
+        fd.write("goodbye")
+        fd.close()
+        fd = open(path1, "r")
+        contents1 = fd.read()
+        fd.close()
+        fd = open(path2, "r")
+        contents2 = fd.read()
+        fd.close()
+        self.assertEqual(contents1, "hello")
+        self.assertEqual(contents2, "goodbye")
 
 
 def main(args):

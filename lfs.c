@@ -322,7 +322,6 @@ static void* lfs_init(struct fuse_conn_info *conn){
 }
 
 static void lfs_destroy(void* private_data){
-	sleep(3);
 	// called when the filesystem exits. 
 	printf("EXIT LFS!!!!!!! GOODBYE.再见。\n");	
 
