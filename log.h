@@ -1,8 +1,10 @@
 /**
-*	@author Wenkang Zhou, Xueheng Wan
-*	For CSc 552 LFS Project.
-*	
+*	filename: log.h
+*	CSC 552 LFS Project Phase 1
+*	Wenkang Zhou wenkangzhou@email.arizona.edu
+*	Xueheng Wan  wanxueheng@email.arizona.edu
 */
+
 #define FUSE_USE_VERSION 26
 #ifndef LOG_H
 #define LOG_H

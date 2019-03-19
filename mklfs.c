@@ -1,3 +1,10 @@
+/**
+*	filename: mklfs.c
+*	CSC 552 LFS Project Phase 1
+*	Wenkang Zhou wenkangzhou@email.arizona.edu
+*	Xueheng Wan  wanxueheng@email.arizona.edu
+*/
+
 #include <getopt.h>
 #include <string.h>
 #include <stdio.h>

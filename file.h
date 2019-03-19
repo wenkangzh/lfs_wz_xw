@@ -1,3 +1,10 @@
+/**
+*	filename: file.h
+*	CSC 552 LFS Project Phase 1
+*	Wenkang Zhou wenkangzhou@email.arizona.edu
+*	Xueheng Wan  wanxueheng@email.arizona.edu
+*/
+
 #ifndef FILE_H
 #define FILE_H
 #define FUSE_USE_VERSION 26

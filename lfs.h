@@ -11,6 +11,13 @@
 #include <stdint.h>
 #include "flash.h"
 #include <stdlib.h>
+/**
+*	filename: lfs.h
+*	CSC 552 LFS Project Phase 1
+*	Wenkang Zhou wenkangzhou@email.arizona.edu
+*	Xueheng Wan  wanxueheng@email.arizona.edu
+*/
+
 #include <string.h>
 #include "file.h"
 #include <fuse.h>

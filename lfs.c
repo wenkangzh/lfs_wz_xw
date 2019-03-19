@@ -1,3 +1,10 @@
+/**
+*	filename: lfs.c
+*	CSC 552 LFS Project Phase 1
+*	Wenkang Zhou wenkangzhou@email.arizona.edu
+*	Xueheng Wan  wanxueheng@email.arizona.edu
+*/
+
 #define FUSE_USE_VERSION 26
 
 #include <fuse.h>
@@ -287,9 +294,9 @@ static int lfs_getattr(const char* path, struct stat* stbuf){
     }
 
     printf("~~~MODE: %lo\n", (long unsigned int) stbuf->st_mode);
-    printf("~~~NLINK: %ld\n", stbuf->st_nlink);
-    printf("~~~SIZE : %ld\n", stbuf->st_size);
-    printf("~~~INUM : %ld\n", stbuf->st_ino);
+    printf("~~~NLINK: %hu\n", stbuf->st_nlink);
+    printf("~~~SIZE : %lld\n", stbuf->st_size);
+    printf("~~~INUM : %llu\n", stbuf->st_ino);
 
 	return res; 
 }
@@ -355,7 +362,7 @@ static int lfs_open(const char* path, struct fuse_file_info* fi) {
  */
 static int lfs_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_file_info* fi){
 	memset(buf, 0, size);
-	printf("----- FUSE_READING %s size %ld offset %ld\n", path, size, offset);
+	printf("----- FUSE_READING %s size %ld offset %lld\n", path, size, offset);
 	// 1. lookup the file in directory layer
 	// for phase 1, this only happens in root directory.
 	size_t len;
@@ -388,7 +395,7 @@ static int lfs_read(const char* path, char *buf, size_t size, off_t offset, stru
  *----------------------------------------------------------------------
  */
 static int lfs_write(const char* path, const char *buf, size_t size, off_t offset, struct fuse_file_info* fi){
-	printf("----- FUSE_写 %s size %ld offset %ld\n", path, size, offset);
+	printf("----- FUSE_写 %s size %ld offset %lld\n", path, size, offset);
     (void) fi;
     uint16_t inum = inum_lookup(path+1);
     if(inum == LFS_UNUSED_ADDR){

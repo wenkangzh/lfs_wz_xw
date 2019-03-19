@@ -55,16 +55,16 @@ class TestBase(unittest.TestCase):
 
 class TestBasic(TestBase):
 
-    # def test_00_write_then_read(self):
-    #     global options
-    #     path = os.path.join(options.mount, "foo")
-    #     fd = open(path, "w")
-    #     fd.write("hello")
-    #     fd.close()
-    #     fd = open(path, "r")
-    #     contents = fd.read()
-    #     fd.close()
-    #     self.assertEqual(contents, "hello")
+    def test_00_write_then_read(self):
+        global options
+        path = os.path.join(options.mount, "foo")
+        fd = open(path, "w")
+        fd.write("hello")
+        fd.close()
+        fd = open(path, "r")
+        contents = fd.read()
+        fd.close()
+        self.assertEqual(contents, "hello")
 
     # def test_01_write_and_write_and_read(self):
     #     global options
@@ -90,30 +90,30 @@ class TestBasic(TestBase):
     #     fd.close()
     #     self.assertEqual(contents, "lo")
 
-    def test_03_read_from_hole(self):
-        global options
-        path = os.path.join(options.mount, "foo")
-        fd = open(path, "w")
-        fd.seek(10)
-        fd.write("hello")
-        fd.close()
-        fd = open(path, "r")
-        fd.seek(3)
-        contents = fd.read(3)
-        fd.close()
-        self.assertEqual(contents, "\x00\x00\x00")
+    # def test_03_read_from_hole(self):
+    #     global options
+    #     path = os.path.join(options.mount, "foo")
+    #     fd = open(path, "w")
+    #     fd.seek(10)
+    #     fd.write("hello")
+    #     fd.close()
+    #     fd = open(path, "r")
+    #     fd.seek(3)
+    #     contents = fd.read(3)
+    #     fd.close()
+    #     self.assertEqual(contents, "\x00\x00\x00")
 
-    def test_04_read_beyond_eof(self):
-        global options
-        path = os.path.join(options.mount, "foo")
-        fd = open(path, "w")
-        fd.write("hello")
-        fd.close()
-        fd = open(path, "r")
-        fd.seek(10)
-        contents = fd.read()
-        fd.close()
-        self.assertEqual(contents, "")
+    # def test_04_read_beyond_eof(self):
+    #     global options
+    #     path = os.path.join(options.mount, "foo")
+    #     fd = open(path, "w")
+    #     fd.write("hello")
+    #     fd.close()
+    #     fd = open(path, "r")
+    #     fd.seek(10)
+    #     contents = fd.read()
+    #     fd.close()
+    #     self.assertEqual(contents, "")
 
     # def test_05_overwrite(self):
     #     global options
@@ -256,24 +256,24 @@ class TestBasic(TestBase):
     #     fd.close()
     #     self.assertEqual(contents, "hello\x00\x00\x00\x00\x00")
 
-    def test_17_multiple_files(self):
-        global options
-        path1 = os.path.join(options.mount, "foo")
-        fd = open(path1, "w")
-        fd.write("hello")
-        fd.close()
-        path2 = os.path.join(options.mount, "bar")
-        fd = open(path2, "w")
-        fd.write("goodbye")
-        fd.close()
-        fd = open(path1, "r")
-        contents1 = fd.read()
-        fd.close()
-        fd = open(path2, "r")
-        contents2 = fd.read()
-        fd.close()
-        self.assertEqual(contents1, "hello")
-        self.assertEqual(contents2, "goodbye")
+    # def test_17_multiple_files(self):
+    #     global options
+    #     path1 = os.path.join(options.mount, "foo")
+    #     fd = open(path1, "w")
+    #     fd.write("hello")
+    #     fd.close()
+    #     path2 = os.path.join(options.mount, "bar")
+    #     fd = open(path2, "w")
+    #     fd.write("goodbye")
+    #     fd.close()
+    #     fd = open(path1, "r")
+    #     contents1 = fd.read()
+    #     fd.close()
+    #     fd = open(path2, "r")
+    #     contents2 = fd.read()
+    #     fd.close()
+    #     self.assertEqual(contents1, "hello")
+    #     self.assertEqual(contents2, "goodbye")
 
 
 def main(args):
