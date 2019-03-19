@@ -161,9 +161,32 @@ uint16_t inum_lookup(const char *filename)
     return LFS_UNUSED_ADDR;
 }
 
+static const char *hello_str = "Hello World!\n";
+static const char *hello_path = "/hello";
+static const char *link_path = "/link";
+
 static int lfs_getattr(const char* path, struct stat* stbuf){
 
 	int res = 0;
+
+	// memset(stbuf, 0, sizeof(struct stat));
+ //    if (strcmp(path, "/") == 0) {
+ //        stbuf->st_mode = S_IFDIR | 0777;
+ //        stbuf->st_nlink = 2;
+ //        stbuf->st_ino = 3;
+ //    } else if (strcmp(path, "/hello_file") == 0) {
+ //        stbuf->st_mode = S_IFREG | 0777;
+ //        stbuf->st_nlink = 1;
+ //        stbuf->st_size = strlen(hello_str);
+ //        stbuf->st_ino = 17;
+ //    } else if (strcmp(path, link_path) == 0) {
+ //        stbuf->st_mode = S_IFLNK | 0777;
+ //        stbuf->st_nlink = 1;
+ //        stbuf->st_size = strlen(hello_path);
+ //        stbuf->st_ino = 17;
+ //    } else
+ //        res = -ENOENT;
+
 	memset(stbuf, 0, sizeof(struct stat));
 	if (strcmp(path, "/") == 0) {
         stbuf->st_mode = S_IFDIR | 0777;
@@ -180,15 +203,23 @@ static int lfs_getattr(const char* path, struct stat* stbuf){
     	}
     	struct inode *inode = malloc(sizeof(struct inode));
     	Read_Inode_in_Ifile(inum, inode);
-    	mode_t mode;
-    	if(inode->type == LFS_FILE_TYPE_FILE)
+    	mode_t mode = S_IFREG | 0777;
+    	if(inode->type == LFS_FILE_TYPE_FILE){
     		mode = S_IFREG | 0777;
+    		stbuf->st_size = inode->size;
+    	}
     	if(inode->type == LFS_FILE_TYPE_DIR)
     		mode = S_IFDIR | 0777;
     	stbuf->st_mode = mode;
     	stbuf->st_nlink = 1; // TODO this is hard coded for all files in root directory
     	stbuf->st_ino = inode->inum;
     }
+
+    printf("~~~MODE: %lo\n", (long unsigned int) stbuf->st_mode);
+    printf("~~~NLINK: %ld\n", stbuf->st_nlink);
+    printf("~~~SIZE : %ld\n", stbuf->st_size);
+    printf("~~~INUM : %ld\n", stbuf->st_ino);
+
 	return res; 
 }
 
@@ -206,6 +237,7 @@ static int lfs_open(const char* path, struct fuse_file_info* fi) {
 }
 
 static int lfs_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_file_info* fi){
+	memset(buf, 0, size);
 	printf("----- FUSE_READING %s size %ld offset %ld\n", path, size, offset);
 	// 1. lookup the file in directory layer
 	// for phase 1, this only happens in root directory.
@@ -225,18 +257,16 @@ static int lfs_read(const char* path, char *buf, size_t size, off_t offset, stru
     } else{
         size = 0;
     }
-	// File_Read(inum, offset, size, buf);
+	File_Read(inum, offset, size, buf);
 
-    memcpy(buf, "hello", size);
 	printf("----- READ CONTENT %ld: %s\n",size, buf);
 	return size;
 }
 
 static int lfs_write(const char* path, const char *buf, size_t size, off_t offset, struct fuse_file_info* fi){
+	printf("----- FUSE_写 %s size %ld offset %ld\n", path, size, offset);
     (void) fi;
     uint16_t inum = inum_lookup(path+1);
-    // struct inode *inode = malloc(sizeof(struct inode));
-    // Read_Inode_in_Ifile(inum, inode);
     if(inum == LFS_UNUSED_ADDR){
 		return -ENOENT;
 	}
@@ -281,6 +311,16 @@ static int lfs_releasedir(const char* path, struct fuse_file_info *fi){return 0;
 
 static void* lfs_init(struct fuse_conn_info *conn){
 	init();
+
+	// uint16_t inum = assign_inum("hello_file");
+	// File_Create(inum, LFS_FILE_TYPE_FILE);
+	// struct inode *temp = malloc(sizeof(struct inode));
+	// Read_Inode_in_Ifile(inum, temp);
+	// printf("~~~~~~~~~~~~~~\n");
+	// print_inode(temp);
+
+	// File_Write(inum, 0, 10, "ABCABCABCV");
+
 	return 0;
 }
 
@@ -349,7 +389,7 @@ static struct fuse_operations lfs_oper = {
 	.truncate = lfs_truncate,
 	.rename = lfs_rename,
 	.chmod = lfs_chmod,
-	.chown = lfs_chown
+	.chown = lfs_chown,
 };
 
 

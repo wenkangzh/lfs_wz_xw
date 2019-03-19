@@ -139,11 +139,11 @@ int File_Write_Helper(struct inode *inode_inum, int block, struct addr *blk_addr
 	memcpy(modificaition, buffer, write_length);
 	// Change of size
 	int change_of_size = 0;
-	if(isNewBlock == 1){
-		change_of_size = write_length;
-	}else if((remaining_length < s_block_byte) || ((inode_inum->size / s_block_byte) == block)){
+	if((remaining_length < s_block_byte) || ((inode_inum->size / s_block_byte) == block)){
 		int old_boundary = inode_inum->size % s_block_byte;
 		change_of_size = old_boundary > (offset + write_length) ? 0 : (offset + write_length) - old_boundary; // Compute amount of size increased in this operation
+	} else if(isNewBlock == 1){
+		change_of_size = write_length;
 	}
 	// Write new data of block
 	Log_Write(inode_inum->inum, block, change_of_size, block_data, blk_addr);
