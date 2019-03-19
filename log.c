@@ -25,7 +25,7 @@ int Log_Read(struct addr *logAddress, int length, void* buffer)
 	printf("READING from %u %u\n", logAddress->seg_num, logAddress->block_num);
 	// if the block we need to find is in the "tail" segment, just read from the tail cache.
 	if(logAddress->seg_num == tail_seg->seg_num){
-		printf("READing from tail cache, seg %u\n", tail_seg->seg_num);
+		printf("READING FROM TAIL CACHE, SEG_NUM: %u\n", tail_seg->seg_num);
 		void *block_to_copy = tail_seg->blocks + (lfs_sb->b_size * FLASH_SECTOR_SIZE) * (logAddress->block_num);
 		memcpy(buffer, block_to_copy, (lfs_sb->b_size * FLASH_SECTOR_SIZE));
 		return 0;
@@ -54,7 +54,7 @@ int Log_Read(struct addr *logAddress, int length, void* buffer)
 // update the block in the ifile, return the block
 void updateInode(int inum, int block, struct addr *block_addr, int length)
 {
-	printf("UPDATING %u %u\n", block_addr->seg_num, block_addr->block_num);
+	printf("UPDATING INODE OF FILE %d WITH SEG_NUM: %u AND BLOCK_NUM: %u\n", inum, block_addr->seg_num, block_addr->block_num);
 	// 1. Find the block in ifile where the inode locates.
 	void *buffer = malloc(lfs_sb->b_size * FLASH_SECTOR_SIZE);
 	// find the block number of ifile:
@@ -65,21 +65,17 @@ void updateInode(int inum, int block, struct addr *block_addr, int length)
 	}
 	// 2. Find inode with inum in ifile.
 	int offset = inum * sizeof(struct inode) % s_block_byte;
-	printf("OFFSET: %d\n", offset);
 	struct inode *i_inode = (struct inode *) (buffer + offset);
 	// 3. Update the address of the file block "block"
 	i_inode->ptrs[block].seg_num = block_addr->seg_num;
 	i_inode->ptrs[block].block_num = block_addr->block_num;
 	i_inode->size += length; // length > 0 if the size increase; length < 0 if the size decrease;
 	// writing the file block of ifile in the log.
-	printf(")()()(Should be\n");
-	print_inode(i_inode);
+	//print_inode(i_inode);
 	Log_Write(LFS_IFILE_INUM, blk_num, s_block_byte, buffer, &(cp_region->ifile_inode.ptrs[blk_num]));
-	printf("><><>< %u %u\n", cp_region->ifile_inode.ptrs[blk_num].seg_num, cp_region->ifile_inode.ptrs[blk_num].block_num);
-	void *inode_inum = malloc(sizeof(struct inode));
-	Read_Inode_in_Ifile(inum, inode_inum);
-	printf(")()()(\n");
-	print_inode(inode_inum);
+	cp_region->ifile_inode.size = cp_region->ifile_inode.size < (inum + 1) * sizeof(struct inode) ? (inum + 1) * sizeof(struct inode) : cp_region->ifile_inode.size;
+	printf("iFile has been updated with FILE %d :\n", inum);
+	print_inode(&(cp_region->ifile_inode));
 }
 
 /*
@@ -100,6 +96,25 @@ void updateInode(int inum, int block, struct addr *block_addr, int length)
  *
  *----------------------------------------------------------------------
  */
+
+int write_tail_seg_to_flash()
+{
+	int i;
+	printf("WRITING TO FLASH. %d %u\n", segNum_To_Sectors(tail_seg->seg_num), lfs_sb->seg_size * lfs_sb->b_size);
+	i = Flash_Write(flash, segNum_To_Sectors(tail_seg->seg_num), lfs_sb->seg_size * lfs_sb->b_size, tail_seg->blocks);
+	if(i != 0){
+		printf("ERROR: %s\n", strerror(errno));
+		return i;
+	}
+
+	tail_seg->seg_num++; // TODO get next segment number from most recent checkpoint region. 
+	memset(tail_seg->blocks, 0, lfs_sb->seg_size * lfs_sb->b_size * FLASH_SECTOR_SIZE);
+	next_block_in_tail = 0;
+
+	// TODO add this segment to segment cache. 
+	return 0;
+}
+
 int Log_Write(int inum, int block, int length, void* buffer, struct addr *logAddress)
 {
 	if(flash == NULL){
@@ -114,9 +129,9 @@ int Log_Write(int inum, int block, int length, void* buffer, struct addr *logAdd
 	}
 
 	// insert into tail_seg
-	void *next_block = tail_seg->blocks + (lfs_sb->b_size * FLASH_SECTOR_SIZE) * next_block_in_tail;
+	void *next_block = tail_seg->blocks + s_block_byte * next_block_in_tail;
 	// printf("HEAD: %p NEXT: %p, skipped %u\n", tail_seg->blocks, next_block, (lfs_sb->b_size * FLASH_SECTOR_SIZE) * next_block_in_tail);
-	memcpy(next_block, buffer, length);
+	memcpy(next_block, buffer, s_block_byte);
 
 	// if Log_Write is used to write iFile, *logAddress is acutally the cp_region->ifile_inode.ptrs[i];
 	(logAddress)->seg_num = tail_seg->seg_num;
@@ -125,26 +140,14 @@ int Log_Write(int inum, int block, int length, void* buffer, struct addr *logAdd
 	int i = 0;
 	// check if tail_seg is full, TODO RESERVE 1 block for checkpoint region.
 	if (next_block_in_tail == lfs_sb->seg_size - 1){
-		printf("WRITing to FLASH. %d %u\n", segNum_To_Sectors(tail_seg->seg_num), lfs_sb->seg_size * lfs_sb->b_size);
-		i = Flash_Write(flash, segNum_To_Sectors(tail_seg->seg_num), lfs_sb->seg_size * lfs_sb->b_size, tail_seg->blocks);
-		if(i != 0){
-			printf("ERROR: %s\n", strerror(errno));
-			return i;
-		}
-
-		tail_seg->seg_num++; // TODO get next segment number from most recent checkpoint region. 
-		memset(tail_seg->blocks, 0, lfs_sb->seg_size * lfs_sb->b_size * FLASH_SECTOR_SIZE);
-		next_block_in_tail = 0;
-
-		// TODO add this segment to segment cache. 
-
+		i = write_tail_seg_to_flash();
 	}
 
 	// update the inode for the file
-	if(inum != LFS_IFILE_INUM)
+	if(inum != LFS_IFILE_INUM && inum != -1)
 		updateInode(inum, block, (logAddress), length);
 
-	printf("WROte addr %u %u \n", logAddress->seg_num, logAddress->block_num);
+	printf("ADRESS OF NEW WRITTEN BLOCK IN LOG: %u %u \n", logAddress->seg_num, logAddress->block_num);
 	return i;
 }
 

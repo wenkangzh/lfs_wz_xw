@@ -2,6 +2,7 @@
 
 #include <fuse.h>
 #include <stdio.h>
+#include <getopt.h>
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -10,17 +11,19 @@
 #include "lfs.h"
 #include "log.h"
 #include "flash.h"
+#include <unistd.h>
 
 
 
 struct superblock *lfs_sb = NULL;
 struct checkpoint_region *cp_region = NULL;
 int s_block_byte = 0;
+char *flash_file_name = NULL;
 
 void init()
 {
 	u_int *blocks_n = malloc(sizeof(u_int));
-	flash = Flash_Open("file", FLASH_ASYNC, blocks_n);
+	flash = Flash_Open(flash_file_name, FLASH_ASYNC, blocks_n);
 	init_sb();
 
 	// Compute size of a block in Byte
@@ -68,12 +71,14 @@ void init_sb()
 
 void print_sb()
 {
+	printf("--------------------- SB -------------------\n");
 	printf("seg_size: %u\n", lfs_sb->seg_size);
 	printf("b_size: %u\n", lfs_sb->b_size);
 	printf("seg_num: %u\n", lfs_sb->seg_num);
 	printf("sb_seg_num: %u\n", lfs_sb->sb_seg_num);
 	printf("CK_addr_seg: %u\n", lfs_sb->checkpoint_addr.seg_num);
 	printf("CK_addr_blo: %u\n", lfs_sb->checkpoint_addr.block_num);
+	printf("--------------------------------------------\n");
 }
 
 void print_cp_region()
@@ -103,35 +108,217 @@ void print_inode(struct inode *inode)
 	printf("\t-----------------\n");
 }
 
-static int lfs_getattr(const char* path, struct stat* stbuf){ return 0; }
+void print_root()
+{
+
+}
+
+uint16_t assign_inum(const char *filename)
+{
+	struct inode *root_inode = malloc(sizeof(struct inode));
+	Read_Inode_in_Ifile(LFS_ROOT_INUM, root_inode);
+	// print_inode(root_inode);
+	void *root_dir = malloc(root_inode->size + sizeof(struct dir_entry));
+	File_Read(LFS_ROOT_INUM, 0, root_inode->size, root_dir);
+	struct dir *root_hdr = root_dir;
+	printf("Name: %s, size: %d\n", root_hdr->name, root_hdr->size);
+	root_hdr->size ++ ;
+	struct dir_entry *last_entry = root_dir + root_inode->size - sizeof(struct dir_entry);
+	struct dir_entry *new_entry = root_dir + root_inode->size;
+	strncpy(new_entry->name, filename, sizeof(new_entry->name));
+	new_entry->inum = last_entry->inum + 1;
+	File_Write(LFS_ROOT_INUM, 0, root_inode->size + sizeof(struct dir_entry), root_dir);
+	printf("DONE updating root\n");
+	return new_entry->inum;
+	// test for new root inode:
+	// void *temp_inode = malloc(sizeof(struct inode));
+	// Read_Inode_in_Ifile(LFS_ROOT_INUM, temp_inode);
+	// print_inode(temp_inode);
+}
+
+
+// given filename, return the inum. (TODO currently only for root directory)
+uint16_t inum_lookup(const char *filename)
+{
+	struct inode *root_inode = malloc(sizeof(struct inode));
+	// get the inode of TODO root directory
+    Read_Inode_in_Ifile(LFS_ROOT_INUM, root_inode);
+    // now read the whole root directory.
+    void *root_buffer = malloc(root_inode->size);
+    File_Read(LFS_ROOT_INUM, 0, root_inode->size, root_buffer);
+    struct dir *root_dir = root_buffer;
+    struct dir_entry *entry_ptr;
+    for (int i = 0; i < root_dir->size; ++i)
+    {
+    	entry_ptr = root_buffer + sizeof(struct dir) + (sizeof(struct dir_entry) * i);
+    	printf("Comparing %s %s\n", filename, entry_ptr->name);
+    	if(strcmp(filename, entry_ptr->name) == 0){
+    		return entry_ptr->inum;
+    	}
+    	/* code */
+    }
+    // for default, if the lookup is failed, then return the 0xFFFF as error code.
+    return LFS_UNUSED_ADDR;
+}
+
+static int lfs_getattr(const char* path, struct stat* stbuf){
+
+	int res = 0;
+	memset(stbuf, 0, sizeof(struct stat));
+	if (strcmp(path, "/") == 0) {
+        stbuf->st_mode = S_IFDIR | 0777;
+        stbuf->st_nlink = 2;
+        stbuf->st_ino = 3;
+    } else {
+    	// deal with all files in root path. 
+    	// first get the inum of the file provided with the file name.(path+1)
+    	uint16_t inum = inum_lookup(path+1);
+    	printf("GETTING inum in getattr %s %u\n", path, inum);
+    	if(inum == LFS_UNUSED_ADDR){
+    		res = -ENOENT;
+    		return res;
+    	}
+    	struct inode *inode = malloc(sizeof(struct inode));
+    	Read_Inode_in_Ifile(inum, inode);
+    	mode_t mode;
+    	if(inode->type == LFS_FILE_TYPE_FILE)
+    		mode = S_IFREG | 0777;
+    	if(inode->type == LFS_FILE_TYPE_DIR)
+    		mode = S_IFDIR | 0777;
+    	stbuf->st_mode = mode;
+    	stbuf->st_nlink = 1; // TODO this is hard coded for all files in root directory
+    	stbuf->st_ino = inode->inum;
+    }
+	return res; 
+}
+
 static int lfs_readlink(const char* path, char* buf, size_t size) {return 0;}
 static int lfs_mkdir(const char* path, mode_t mode) {return 0;}
 static int lfs_unlink(const char* path) {return 0;}
 static int lfs_rmdir(const char* path) {return 0;}
 
 static int lfs_open(const char* path, struct fuse_file_info* fi) {
+	if(inum_lookup(path+1) == LFS_UNUSED_ADDR){
+		return -ENOENT;
+	}
 	// check for existence and permissions for the file. 
 	return 0;
 }
 
 static int lfs_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_file_info* fi){
+	printf("----- FUSE_READING %s size %ld offset %ld\n", path, size, offset);
 	// 1. lookup the file in directory layer
 	// for phase 1, this only happens in root directory.
-	return 0;
+	size_t len;
+    (void) fi;
+    uint16_t inum = inum_lookup(path+1);
+    struct inode *inode = malloc(sizeof(struct inode));
+    Read_Inode_in_Ifile(inum, inode);
+    if(inum == LFS_UNUSED_ADDR){
+		return -ENOENT;
+	}
+	print_inode(inode);
+	len = inode->size;
+	if (offset < len) {
+        if (offset + size > len)
+            size = len - offset;
+    } else{
+        size = 0;
+    }
+	// File_Read(inum, offset, size, buf);
+
+    memcpy(buf, "hello", size);
+	printf("----- READ CONTENT %ld: %s\n",size, buf);
+	return size;
 }
 
 static int lfs_write(const char* path, const char *buf, size_t size, off_t offset, struct fuse_file_info* fi){
-	return 0;
+    (void) fi;
+    uint16_t inum = inum_lookup(path+1);
+    // struct inode *inode = malloc(sizeof(struct inode));
+    // Read_Inode_in_Ifile(inum, inode);
+    if(inum == LFS_UNUSED_ADDR){
+		return -ENOENT;
+	}
+	File_Write(inum, offset, size, (void *) buf);
+	return size;
 }
 
 static int lfs_statfs(const char* path, struct statvfs* stbuf){return 0;}
 static int lfs_release(const char* path, struct fuse_file_info *fi){return 0;}
 static int lfs_opendir(const char* path, struct fuse_file_info* fi){return 0;}
-static int lfs_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info* fi){return 0;}
+
+static int lfs_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info* fi){
+	// 
+	(void) offset;
+	(void) fi;
+
+	if(strcmp(path, "/") != 0)
+		return -ENOENT;
+
+	struct inode *root_inode = malloc(sizeof(struct inode));
+	Read_Inode_in_Ifile(LFS_ROOT_INUM, root_inode);
+	void *root_buffer = malloc(root_inode->size);
+	File_Read(LFS_ROOT_INUM, 0, root_inode->size, root_buffer);
+	struct dir *root = root_buffer;
+	int num_entries = root->size;
+	printf("DIR: %s\n", root->name);
+	struct dir_entry *ptr = root_buffer;
+	for (int i = 0; i < num_entries; ++i)
+	{
+		ptr = root_buffer + sizeof(struct dir) + sizeof(struct dir_entry) * (i);
+		printf("FILE %u: %s\n", ptr->inum, ptr->name);
+		// each time we read a directory entry from the root buffer. 
+		filler(buf, ptr->name, NULL, 0);
+
+	}
+
+	// need to read directory file here. 
+	return 0;
+}
+
 static int lfs_releasedir(const char* path, struct fuse_file_info *fi){return 0;}
-static void* lfs_init(struct fuse_conn_info *conn){return 0;}
-static void lfs_destroy(void* private_data){}
-static int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi){return 0;}
+
+static void* lfs_init(struct fuse_conn_info *conn){
+	init();
+	return 0;
+}
+
+static void lfs_destroy(void* private_data){
+	sleep(3);
+	// called when the filesystem exits. 
+	printf("EXIT LFS!!!!!!! GOODBYE.再见。\n");	
+
+	// 1. write the most recent checkpoint region. 
+	void *cp_buffer = malloc(s_block_byte);
+	memcpy(cp_buffer, cp_region, sizeof(struct checkpoint_region));
+	// block=0 is an exception for the situation.
+	Log_Write(-1, 0, s_block_byte, cp_buffer, &(lfs_sb->checkpoint_addr));
+
+	// 2. write the tail segment.
+	write_tail_seg_to_flash();
+
+	// 3. write superblock to flash.
+	void *sb_buffer = malloc(lfs_sb->seg_size * s_block_byte);
+	memcpy(sb_buffer, lfs_sb, sizeof(struct superblock));
+	Flash_Write(flash, 0, lfs_sb->seg_size * s_block_byte, sb_buffer);
+
+	// Close the flash.
+	if (Flash_Close(flash) != 0) {
+		printf("ERROR: %s\n", strerror(errno));
+	}
+}
+
+static int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi){
+	// assign inum to the given filename, then call File_Create in file layer. 
+	uint16_t inum = assign_inum(path+1);
+	File_Create(inum, LFS_FILE_TYPE_FILE);
+	struct inode *temp = malloc(sizeof(struct inode));
+	Read_Inode_in_Ifile(inum, temp);
+	print_inode(temp);
+	return 0;
+}
+
 static int lfs_link(const char* from, const char* to){return 0;}
 static int lfs_symlink(const char* to, const char* from){return 0;}
 static int lfs_truncate(const char* path, off_t size){return 0;}
@@ -171,18 +358,54 @@ int main(int argc, char *argv[])
 	char 	**nargv = NULL;
     int		i;
     int         nargc;
+    int our_argc = argc - 2;
 
 #define NARGS 3
 
-    nargc = argc + NARGS;
+    int cache = 4;
+    int interval = 4;
+    int start = 4;
+    int stop = 8;
+
+    int opt = 0;
+	struct option long_options[] = {
+		{"cache", 		required_argument, 0, 's'}, 
+		{"interval", 	required_argument, 0, 'i'},
+		{"start", 	required_argument, 0, 'c'},
+		{"stop", 	required_argument, 0, 'C'}
+	};
+	int long_index = 0;
+	while ((opt = getopt_long(argc, argv, "s:i:c:C:", 
+					long_options, &long_index)) != -1){
+		switch (opt) {
+			case 's':
+				cache = (int) strtol(optarg, (char **)NULL, 10);
+				break;
+			case 'i':
+				interval = (int) strtol(optarg, (char **)NULL, 10);
+				break;
+			case 'c':
+				start = (int) strtol(optarg, (char **)NULL, 10);
+				break;
+			case 'C':
+				stop = (int) strtol(optarg, (char **)NULL, 10);
+				break;
+			default:
+				printf("usage: ... \n");
+		}
+	}
+
+
+	flash_file_name = argv[argc-2];
+    nargc = argc + NARGS - our_argc;
 
     nargv = (char **) malloc(nargc * sizeof(char*));
     nargv[0] = argv[0];
     nargv[1] = "-f";
     nargv[2] = "-s";
     nargv[3] = "-d";
-    for (i = 1; i < argc; i++) {
-	nargv[i+NARGS] = argv[i];
+    for (i = 1; i < argc - our_argc; i++) {
+	nargv[i+NARGS] = argv[i+our_argc];
     }
     return fuse_main(nargc, nargv, &lfs_oper, NULL);
 }
@@ -192,30 +415,42 @@ int main(int argc, char *argv[])
 // {
 // 	init();
 // 	print_sb();
-	
-// 	char str[3000];
-// 	for(int i = 0; i < 3000; i ++) 
-// 		str[i] = 'a';
 
-// 	for (int i = 0; i < 40; ++i)
-// 	{
-// 		File_Create(i+1, LFS_FILE_TYPE_FILE);
-// 	}
+// 	uint16_t n = inum_lookup(".");
+// 	printf("!!!@@@%u\n", n);
 
-// 	for (int i = 0; i < 40; ++i)
-// 	{
-// 		// char a = (char) i+48;
-// 		File_Write(i+1, 0, 3000, &str);
-// 	}
+// 	// printf("Manipulating FILE 2\n");
+// 	// File_Create(2, LFS_FILE_TYPE_FILE);
+// 	// char str[1200];
+// 	// for(int i = 0; i < 1200; i ++) str[i] = 'a';
+// 	// File_Write(2, 0, 1200, &str);
+// 	// printf("The size of file 2 at this point should be 1200!\n");
 
-// 	for (int i = 0; i < 40; ++i)
-// 	{
-// 		void *result = malloc(2);
-// 		File_Read(i+1, 0, 1, result);
-// 		printf("RESULT File %d\n: %s\n", i, (char *) result);
-// 	 }
+// 	// char str1[700];
+// 	// for(int i = 0; i < 700; i ++) str1[i] = 'b';
+// 	// File_Write(2, 800, 700, &str1);
+// 	// printf("The size of file 2 at this point should be 1500!\n");	
 
-// 	print_cp_region();
+// 	// char str2[400];
+// 	// for(int i = 0; i < 400; i ++) str2[i] = 'c';
+// 	// File_Write(2, 900, 400, &str2);
+// 	// printf("The size of file 2 at this point should be 1500!\n");
+
+// 	// char str3[1000];
+// 	// for(int i = 0; i < 1000; i ++) str3[i] = 'x';
+// 	// File_Write(2, 1400, 1000, &str3);
+// 	// printf("The size of file 2 at this point should be 2400!\n");
+
+// 	// printf("Manipulating FILE 3\n");
+// 	// File_Create(3, LFS_FILE_TYPE_FILE);
+// 	// File_Write(3, 0, 1200, &str);
+// 	// printf("The size of file 3 at this point should be 1200!\n");
+// 	// char str4[2000];
+// 	// for(int i = 0; i < 2000; i ++) str4[i] = 'x';
+// 	// File_Write(3, 1200, 2000, &str4);
+// 	// printf("The size of file 3 at this point should be 3200!\n");
+
+// 	// print_cp_region();
 
 // 	if (Flash_Close(flash) != 0) {
 // 		printf("ERROR: %s\n", strerror(errno));

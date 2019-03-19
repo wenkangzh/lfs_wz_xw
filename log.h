@@ -35,6 +35,7 @@ struct segment{
 };
 
 int Log_Read(struct addr *logAddress, int length, void* buffer);
+int write_tail_seg_to_flash();
 int Log_Write(int inum, int block, int length, void* buffer, struct addr *logAddress);
 int Log_Free(uint32_t logAddress, int length);
 void update_sb();

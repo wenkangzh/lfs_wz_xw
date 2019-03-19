@@ -22,7 +22,7 @@
  */
 int File_Create(int inum, int type)
 {
-	printf("CREATING file with inum %d\n", inum);
+	printf("CREATING FILE, INUM: %d\n", inum);
 
 	// if the file is actually a directory, then the content of the "special file" is array of <name, inum> pairs
 	// i would guess that the format of the special file is up to us/designers
@@ -99,8 +99,8 @@ int File_Write(int inum, int offset, int length, void *buffer)
 	int data_written = 0;
 	int remaining_length = length - data_written;
 	int i_blk = offset / s_block_byte; //Write starts at 'i_blk'th block
+	int isNewBlock = 0; // This value indicates whether or not the data is written to a new block; 1 means newly created block
 	while(remaining_length != 0){
-		printf("....%u\n", inode_inum->ptrs[i_blk].seg_num);
 		if(inode_inum->ptrs[i_blk].seg_num == LFS_UNUSED_ADDR) {
 			
 			if(Extend_Inode(inum, i_blk) == -1){
@@ -108,34 +108,45 @@ int File_Write(int inum, int offset, int length, void *buffer)
 				return -1;
 			}
 			Read_Inode_in_Ifile(inum, inode_inum);
-			print_inode(inode_inum);
+			isNewBlock = 1;
 		}
-		data_written += File_Write_Helper(	inum, 
+		data_written += File_Write_Helper(	inode_inum, 
 											i_blk, 
 											&(inode_inum->ptrs[i_blk]),
 											(offset + data_written) % s_block_byte, 
 											remaining_length, 
-											buffer + data_written	);
+											buffer + data_written, isNewBlock	);
 		remaining_length = length - data_written;
 		i_blk ++;
+		isNewBlock = 0;
 		// create a new block for appened data
 	}
+	printf("DATA WITH LENGTH OF %d HAS BEEN WRITTEN TO FILE %d\n", length, inum);
+	Read_Inode_in_Ifile(inum, inode_inum);
+	print_inode(inode_inum);
 	return 0;
 }
 
 // Read data from given offset to the end of the block
-int File_Write_Helper(int inum, int block, struct addr *blk_addr, int offset, int remaining_length, void *buffer){
+int File_Write_Helper(struct inode *inode_inum, int block, struct addr *blk_addr, int offset, int remaining_length, void *buffer, int isNewBlock){
 	// Get target block that being replaced
 	void *block_data = malloc(s_block_byte);
-	File_Read(inum, inum * s_block_byte, s_block_byte, block_data);
+	File_Read(inode_inum->inum, block * s_block_byte, s_block_byte, block_data);
 	// Modify the target block
 	int write_length = s_block_byte - offset; // Calculate how many bytes we need read
 	if(write_length > remaining_length) write_length = remaining_length;
 	void* modificaition = block_data + offset;
 	memcpy(modificaition, buffer, write_length);
-	printf("ØØØØØØØØØØFile_Wriet_Helper: %s\n", (char *) block_data);
+	// Change of size
+	int change_of_size = 0;
+	if(isNewBlock == 1){
+		change_of_size = write_length;
+	}else if((remaining_length < s_block_byte) || ((inode_inum->size / s_block_byte) == block)){
+		int old_boundary = inode_inum->size % s_block_byte;
+		change_of_size = old_boundary > (offset + write_length) ? 0 : (offset + write_length) - old_boundary; // Compute amount of size increased in this operation
+	}
 	// Write new data of block
-	Log_Write(inum, block, s_block_byte, block_data, blk_addr);
+	Log_Write(inode_inum->inum, block, change_of_size, block_data, blk_addr);
 	return write_length;
 }
 
@@ -165,19 +176,11 @@ int File_Read(int inum, int offset, int length, void *buffer)
 	// 4. Calculate which and how many block need to be read, get them using Log_Read()
 	// 5. memcpy() the wanted data starting at offset and length bytes into buffer
 
-
-	// locate ifile and get the inode of inum
-	// void  *ifile_blk = malloc(lfs_sb->b_size * FLASH_SECTOR_SIZE);
-	// int blk_in_ifile = (inum * sizeof(struct inode)) / (FLASH_SECTOR_SIZE * lfs_sb->b_size);
-	// struct addr *ifile_addr = malloc(sizeof(struct addr));
-	// ifile_addr->seg_num = cp_region->ifile_inode.ptrs[blk_in_ifile].seg_num;
-	// ifile_addr->block_num = (inum * sizeof(struct inode)) % (FLASH_SECTOR_SIZE * lfs_sb->b_size);
-	// Log_Read(ifile_addr, FLASH_SECTOR_SIZE * lfs_sb->b_size, ifile_blk);
-	// struct inode *inode_inum = ifile_blk + (inum * sizeof(struct inode)) % (FLASH_SECTOR_SIZE * lfs_sb->b_size);
 	struct inode *inode_inum = malloc(sizeof(struct inode));
 	Read_Inode_in_Ifile(inum, inode_inum);
-
-	print_inode(inode_inum);
+	if(inode_inum->size == 0)
+		return 0;
+	//print_inode(inode_inum);
 
 	// read block of the file
 	int data_read = 0;
@@ -241,7 +244,6 @@ void Read_Inode_in_Ifile(int inum_of_file, struct inode *inode_inum){
 	struct addr *ifile_addr = malloc(sizeof(struct addr));
 	ifile_addr->seg_num = cp_region->ifile_inode.ptrs[blk_in_ifile].seg_num;
 	ifile_addr->block_num = cp_region->ifile_inode.ptrs[blk_in_ifile].block_num;
-	printf("ifile block %u %u\n", ifile_addr->seg_num, ifile_addr->block_num);
 	Log_Read(ifile_addr, s_block_byte, ifile_blk);
 	memcpy(inode_inum, ifile_blk + (inum_of_file * sizeof(struct inode)) % s_block_byte, sizeof(struct inode));
 }
@@ -250,7 +252,6 @@ void Read_Block_in_Ifile(int block_ifile, void *buffer){
 	struct addr *block_addr = malloc(sizeof(struct addr));
 	block_addr->seg_num = cp_region->ifile_inode.ptrs[block_ifile].seg_num;
 	block_addr->block_num = cp_region->ifile_inode.ptrs[block_ifile].block_num;
-	printf("ifile block %u %u\n", block_addr->seg_num, block_addr->block_num);
 	Log_Read(block_addr, s_block_byte, buffer);
 }
 
@@ -262,7 +263,6 @@ int Extend_Inode(int inum, int blk_num){
 	}
 	void *new_block = malloc(s_block_byte);
 	struct addr *new_block_address = malloc(sizeof(struct addr));
-	Log_Write(inum, blk_num, s_block_byte, new_block, new_block_address);
-	printf(">>> %u %u ", new_block_address->seg_num, new_block_address->block_num);
+	Log_Write(inum, blk_num, 0, new_block, new_block_address);
 	return 0;
 }

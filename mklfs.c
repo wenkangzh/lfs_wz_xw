@@ -57,7 +57,8 @@ int main(int argc, char *argv[])
 	}
 	// create done. 
 	// now do initialization of the LFS
-	struct superblock *superblock = malloc(sizeof(struct superblock));
+	void *sb_buffer = malloc(sizeof_block * sizeof_segment * SUPERBLOCK_SEG_SIZE * FLASH_SECTOR_SIZE);
+	struct superblock *superblock = sb_buffer;
 	superblock->seg_size = sizeof_segment;
 	superblock->b_size = sizeof_block;
 	superblock->seg_num = sizeof_flash;
@@ -69,7 +70,7 @@ int main(int argc, char *argv[])
 	u_int *n_blocks = malloc(sizeof(u_int));
 	Flash flash = Flash_Open(filename, FLASH_ASYNC, n_blocks);
 	printf("%u\n", *n_blocks);
-	Flash_Write(flash, 0, sizeof_block * sizeof_segment * SUPERBLOCK_SEG_SIZE, superblock);
+	Flash_Write(flash, 0, sizeof_block * sizeof_segment * SUPERBLOCK_SEG_SIZE, sb_buffer);
 
 
 	// TODO the initial ifile. Empty? Could use File_Create()? 
@@ -77,7 +78,7 @@ int main(int argc, char *argv[])
 	struct inode *root_inode = malloc(sizeof(struct inode));
 	root_inode->inum = LFS_ROOT_INUM;
 	root_inode->type = LFS_FILE_TYPE_DIR;
-	root_inode->size = sizeof(struct dir_entry) * 3;		// initially there are ".", "..", ".ifile" in the root
+	root_inode->size = sizeof(struct dir_entry) * 3 + sizeof(struct dir);		// initially there are ".", "..", ".ifile" in the root
 	root_inode->ptrs[0].seg_num = LFS_SEG(0);
 	root_inode->ptrs[0].block_num = 1;
 	root_inode->ptrs[1].seg_num = LFS_UNUSED_ADDR;
@@ -86,7 +87,7 @@ int main(int argc, char *argv[])
 	root_inode->ptrs[2].block_num = LFS_UNUSED_ADDR;
 	root_inode->ptrs[3].seg_num = LFS_UNUSED_ADDR;
 	root_inode->ptrs[3].block_num = LFS_UNUSED_ADDR;
-	memcpy(ifile_buffer, root_inode, sizeof(struct inode));
+	memcpy(ifile_buffer + sizeof(struct inode), root_inode, sizeof(struct inode));
 	// now ifile_buffer has one inode, which is inode for root directory file. ⬇
 
 
@@ -105,13 +106,13 @@ int main(int argc, char *argv[])
 	memcpy(temp, entry_temp, sizeof(struct dir_entry));
 
 	temp = root + sizeof(struct dir) + sizeof(struct dir_entry);
-	strncpy(entry_temp->name, "..", sizeof(entry_temp->name));
-	entry_temp->inum = LFS_ROOT_INUM;
+	strncpy(entry_temp->name, ".ifile", sizeof(entry_temp->name));
+	entry_temp->inum = LFS_IFILE_INUM;
 	memcpy(temp, entry_temp, sizeof(struct dir_entry));
 
 	temp = root + sizeof(struct dir) + sizeof(struct dir_entry) * 2;
-	strncpy(entry_temp->name, ".ifile", sizeof(entry_temp->name));
-	entry_temp->inum = LFS_IFILE_INUM;
+	strncpy(entry_temp->name, "..", sizeof(entry_temp->name));
+	entry_temp->inum = LFS_ROOT_INUM;
 	memcpy(temp, entry_temp, sizeof(struct dir_entry));
 	// now root is the whole root directory
 
@@ -124,7 +125,7 @@ int main(int argc, char *argv[])
 	init_cp->segment_usage_table = 0;				// TODO dummy
 	init_cp->ifile_inode.inum = LFS_IFILE_INUM;
 	init_cp->ifile_inode.type = LFS_FILE_TYPE_IFILE;
-	init_cp->ifile_inode.size = sizeof_block * FLASH_SECTOR_SIZE;	// TODO need change in phase 2
+	init_cp->ifile_inode.size = sizeof(struct inode) * 2;	// TODO need change in phase 2
 	init_cp->ifile_inode.ptrs[0].seg_num = LFS_SEG(0);			// 1
 	init_cp->ifile_inode.ptrs[0].block_num = 0;
 	init_cp->ifile_inode.ptrs[1].seg_num = LFS_UNUSED_ADDR;			// 1
