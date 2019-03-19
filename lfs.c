@@ -161,10 +161,6 @@ uint16_t inum_lookup(const char *filename)
     return LFS_UNUSED_ADDR;
 }
 
-static const char *hello_str = "Hello World!\n";
-static const char *hello_path = "/hello";
-static const char *link_path = "/link";
-
 static int lfs_getattr(const char* path, struct stat* stbuf){
 
 	int res = 0;
@@ -232,6 +228,7 @@ static int lfs_open(const char* path, struct fuse_file_info* fi) {
 	if(inum_lookup(path+1) == LFS_UNUSED_ADDR){
 		return -ENOENT;
 	}
+	printf("OPEN 成功˜\n");
 	// check for existence and permissions for the file. 
 	return 0;
 }
@@ -361,7 +358,31 @@ static int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi){
 
 static int lfs_link(const char* from, const char* to){return 0;}
 static int lfs_symlink(const char* to, const char* from){return 0;}
-static int lfs_truncate(const char* path, off_t size){return 0;}
+
+static int lfs_truncate(const char* path, off_t size){
+	uint16_t inum = inum_lookup(path+1);
+	struct inode *inode = malloc(sizeof(struct inode));
+	Read_Inode_in_Ifile(inum, inode);
+	// Get Data of file_inum
+	void *old_buffer = malloc(inode->size);
+	File_Read(inum, 0, inode->size, old_buffer);
+	// Clear blocks of the file_inum
+	for(int i = 3; i >= 0; i --){
+		if(inode->ptrs[i].seg_num != LFS_UNUSED_ADDR){
+			struct addr *block_addr = malloc(sizeof(struct addr));
+			block_addr->seg_num = LFS_UNUSED_ADDR;
+			block_addr->block_num = LFS_UNUSED_ADDR;
+			updateInode(inum, i, block_addr, - inode->size % s_block_byte);
+		}
+	}
+	// Truncate the file
+	void *new_buffer = malloc(size);
+	memcpy(new_buffer, old_buffer, inode->size < size ? inode->size : size );
+	// Write
+	File_Write(inum, 0, size, new_buffer);
+	return 0;
+}
+
 static int lfs_rename(const char* from, const char* to){return 0;}
 static int lfs_chmod(const char* path, mode_t mode){return 0;}
 static int lfs_chown(const char* path, uid_t uid, gid_t gid){return 0;}

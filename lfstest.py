@@ -55,153 +55,153 @@ class TestBase(unittest.TestCase):
 
 class TestBasic(TestBase):
 
-    def test_00_write_then_read(self):
-        global options
-        path = os.path.join(options.mount, "foo")
-        fd = open(path, "w")
-        fd.write("hello")
-        fd.close()
-        fd = open(path, "r")
-        contents = fd.read()
-        fd.close()
-        self.assertEqual(contents, "hello")
+    # def test_00_write_then_read(self):
+    #     global options
+    #     path = os.path.join(options.mount, "foo")
+    #     fd = open(path, "w")
+    #     fd.write("hello")
+    #     fd.close()
+    #     fd = open(path, "r")
+    #     contents = fd.read()
+    #     fd.close()
+    #     self.assertEqual(contents, "hello")
 
-    def test_01_write_and_write_and_read(self):
-        global options
-        path = os.path.join(options.mount, "foo")
-        fd = open(path, "w")
-        fd.write("hello")
-        fd.write("goodbye")
-        fd.close()
-        fd = open(path, "r")
-        contents = fd.read()
-        fd.close()
-        self.assertEqual(contents, "hellogoodbye")
+    # def test_01_write_and_write_and_read(self):
+    #     global options
+    #     path = os.path.join(options.mount, "foo")
+    #     fd = open(path, "w")
+    #     fd.write("hello")
+    #     fd.write("goodbye")
+    #     fd.close()
+    #     fd = open(path, "r")
+    #     contents = fd.read()
+    #     fd.close()
+    #     self.assertEqual(contents, "hellogoodbye")
 
-    def test_02_seek(self):
-        global options
-        path = os.path.join(options.mount, "foo")
-        fd = open(path, "w")
-        fd.write("hello")
-        fd.close()
-        fd = open(path, "r")
-        fd.seek(3)
-        contents = fd.read()
-        fd.close()
-        self.assertEqual(contents, "lo")
+    # def test_02_seek(self):
+    #     global options
+    #     path = os.path.join(options.mount, "foo")
+    #     fd = open(path, "w")
+    #     fd.write("hello")
+    #     fd.close()
+    #     fd = open(path, "r")
+    #     fd.seek(3)
+    #     contents = fd.read()
+    #     fd.close()
+    #     self.assertEqual(contents, "lo")
 
-    def test_03_read_from_hole(self):
-        global options
-        path = os.path.join(options.mount, "foo")
-        fd = open(path, "w")
-        fd.seek(10)
-        fd.write("hello")
-        fd.close()
-        fd = open(path, "r")
-        fd.seek(3)
-        contents = fd.read(3)
-        fd.close()
-        self.assertEqual(contents, "\x00\x00\x00")
+    # def test_03_read_from_hole(self):
+    #     global options
+    #     path = os.path.join(options.mount, "foo")
+    #     fd = open(path, "w")
+    #     fd.seek(10)
+    #     fd.write("hello")
+    #     fd.close()
+    #     fd = open(path, "r")
+    #     fd.seek(3)
+    #     contents = fd.read(3)
+    #     fd.close()
+    #     self.assertEqual(contents, "\x00\x00\x00")
 
-    def test_04_read_beyond_eof(self):
-        global options
-        path = os.path.join(options.mount, "foo")
-        fd = open(path, "w")
-        fd.write("hello")
-        fd.close()
-        fd = open(path, "r")
-        fd.seek(10)
-        contents = fd.read()
-        fd.close()
-        self.assertEqual(contents, "")
+    # def test_04_read_beyond_eof(self):
+    #     global options
+    #     path = os.path.join(options.mount, "foo")
+    #     fd = open(path, "w")
+    #     fd.write("hello")
+    #     fd.close()
+    #     fd = open(path, "r")
+    #     fd.seek(10)
+    #     contents = fd.read()
+    #     fd.close()
+    #     self.assertEqual(contents, "")
 
-    def test_05_overwrite(self):
-        global options
-        path = os.path.join(options.mount, "foo")
-        fd = open(path, "w")
-        fd.write("hello")
-        fd.close()
-        fd = open(path, "w")
-        fd.write("HELLO")
-        fd.close()
-        fd = open(path, "r")
-        contents = fd.read()
-        fd.close()
-        self.assertEqual(contents, "HELLO")
+    # def test_05_overwrite(self):
+    #     global options
+    #     path = os.path.join(options.mount, "foo")
+    #     fd = open(path, "w")
+    #     fd.write("hello")
+    #     fd.close()
+    #     fd = open(path, "w")
+    #     fd.write("HELLO")
+    #     fd.close()
+    #     fd = open(path, "r")
+    #     contents = fd.read()
+    #     fd.close()
+    #     self.assertEqual(contents, "HELLO")
 
-    def test_06_read_across_eof(self):
-        global options
-        path = os.path.join(options.mount, "foo")
-        fd = open(path, "w")
-        fd.write("hello")
-        fd.close()
-        fd = open(path, "r")
-        contents = fd.read(10)
-        fd.close()
-        self.assertEqual(contents, "hello")
+    # def test_06_read_across_eof(self):
+    #     global options
+    #     path = os.path.join(options.mount, "foo")
+    #     fd = open(path, "w")
+    #     fd.write("hello")
+    #     fd.close()
+    #     fd = open(path, "r")
+    #     contents = fd.read(10)
+    #     fd.close()
+    #     self.assertEqual(contents, "hello")
 
-    def test_07_read_across_eof(self):
-        global options
-        path = os.path.join(options.mount, "foo")
-        fd = open(path, "w")
-        fd.write("hello")
-        fd.close()
-        fd = open(path, "r")
-        contents = fd.read(10)
-        fd.close()
-        self.assertEqual(contents, "hello")
-
-
-    def test_08_large_file(self):
-        global options
-        path = os.path.join(options.mount, "foo")
-        fd = open(path, "w")
-        expected = "a" * 3 * 1024
-        fd.write(expected)
-        fd.close()
-        fd = open(path, "r")
-        contents = fd.read()
-        fd.close()
-        self.assertEqual(contents, expected)
-
-    def test_09_binary(self):
-        global options
-        path = os.path.join(options.mount, "foo")
-        fd = open(path, "w")
-        fd.write("\xaa\xbb\xcc")
-        fd.close()
-        fd = open(path, "r")
-        contents = fd.read(10)
-        fd.close()
-        self.assertEqual(contents, "\xaa\xbb\xcc")
-
-    def test_10_not_found(self):
-        global options
-        path = os.path.join(options.mount, "foo")
-        fd = open(path, "w")
-        fd.write("hello")
-        fd.close()
-        path = os.path.join(options.mount, "bar")
-        self.assertRaises(Exception, open, path, "r")
-
-    def test_11_stat_type(self):
-        global options
-        path = os.path.join(options.mount, "foo")
-        fd = open(path, "w")
-        fd.write("hello")
-        fd.close()
-        s = os.stat(path)
-        self.assertTrue(stat.S_ISREG(s.st_mode))
+    # def test_07_read_across_eof(self):
+    #     global options
+    #     path = os.path.join(options.mount, "foo")
+    #     fd = open(path, "w")
+    #     fd.write("hello")
+    #     fd.close()
+    #     fd = open(path, "r")
+    #     contents = fd.read(10)
+    #     fd.close()
+    #     self.assertEqual(contents, "hello")
 
 
-    def test_12_stat_size(self):
-        global options
-        path = os.path.join(options.mount, "foo")
-        fd = open(path, "w")
-        fd.write("hello")
-        fd.close()
-        s = os.stat(path)
-        self.assertEqual(s.st_size, 5)
+    # def test_08_large_file(self):
+    #     global options
+    #     path = os.path.join(options.mount, "foo")
+    #     fd = open(path, "w")
+    #     expected = "a" * 3 * 1024
+    #     fd.write(expected)
+    #     fd.close()
+    #     fd = open(path, "r")
+    #     contents = fd.read()
+    #     fd.close()
+    #     self.assertEqual(contents, expected)
+
+    # def test_09_binary(self):
+    #     global options
+    #     path = os.path.join(options.mount, "foo")
+    #     fd = open(path, "w")
+    #     fd.write("\xaa\xbb\xcc")
+    #     fd.close()
+    #     fd = open(path, "r")
+    #     contents = fd.read(10)
+    #     fd.close()
+    #     self.assertEqual(contents, "\xaa\xbb\xcc")
+
+    # def test_10_not_found(self):
+    #     global options
+    #     path = os.path.join(options.mount, "foo")
+    #     fd = open(path, "w")
+    #     fd.write("hello")
+    #     fd.close()
+    #     path = os.path.join(options.mount, "bar")
+    #     self.assertRaises(Exception, open, path, "r")
+
+    # def test_11_stat_type(self):
+    #     global options
+    #     path = os.path.join(options.mount, "foo")
+    #     fd = open(path, "w")
+    #     fd.write("hello")
+    #     fd.close()
+    #     s = os.stat(path)
+    #     self.assertTrue(stat.S_ISREG(s.st_mode))
+
+
+    # def test_12_stat_size(self):
+    #     global options
+    #     path = os.path.join(options.mount, "foo")
+    #     fd = open(path, "w")
+    #     fd.write("hello")
+    #     fd.close()
+    #     s = os.stat(path)
+    #     self.assertEqual(s.st_size, 5)
 
 
     def test_13_stat_times(self):
