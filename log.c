@@ -78,24 +78,6 @@ void updateInode(int inum, int block, struct addr *block_addr, int length)
 	print_inode(&(cp_region->ifile_inode));
 }
 
-/*
- *----------------------------------------------------------------------
- *
- * Log_Write
- *
- *  This function 
- *
- * Parameters:
- *      inum:			inode number of the file
- *		block: 			block number within the file (block size is 1024 bytes by default)
- *		length: 		number of bytes to write
- *		buffer: 		the data to write
- *		&logAddress:	indicate the log segment and block number within the segment
- *  
- * Return: -1 error
- *
- *----------------------------------------------------------------------
- */
 
 int write_tail_seg_to_flash()
 {
@@ -115,6 +97,24 @@ int write_tail_seg_to_flash()
 	return 0;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * Log_Write
+ *
+ *  This function write a block in the log
+ *
+ * Parameters:
+ *      inum:			inode number of the file
+ *		block: 			block number within the file (block size is 1024 bytes by default)
+ *		length: 		number of bytes to write
+ *		buffer: 		the data to write
+ *		&logAddress:	indicate the log segment and block number within the segment
+ *  
+ * Return: -1 error
+ *
+ *----------------------------------------------------------------------
+ */
 int Log_Write(int inum, int block, int length, void* buffer, struct addr *logAddress)
 {
 	if(flash == NULL){

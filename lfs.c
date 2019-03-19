@@ -20,6 +20,20 @@ struct checkpoint_region *cp_region = NULL;
 int s_block_byte = 0;
 char *flash_file_name = NULL;
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * init
+ *
+ *  This function initialize all the data structures that our LFS will use, including 
+ *	reading from the flash about super block and the checkpoint region. 
+ *
+ * Parameters: NOTHING
+ *  
+ * Return: void.
+ *
+ *----------------------------------------------------------------------
+ */
 void init()
 {
 	u_int *blocks_n = malloc(sizeof(u_int));
@@ -53,6 +67,19 @@ void init()
 
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * init_sb
+ *
+ *  This function initialize the super block structure. 
+ *
+ * Parameters: NOTHING
+ * 
+ * Return: void
+ *
+ *----------------------------------------------------------------------
+ */
 void init_sb()
 {
 	lfs_sb = malloc(sizeof(struct superblock));
@@ -69,6 +96,19 @@ void init_sb()
 	memcpy(lfs_sb, temp, sizeof(struct superblock));
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * Log_Write
+ *
+ *  This function is for debugging purpose, prints the superblock structure
+ *
+ * Parameters: NOTHING
+ *  
+ * Return: void
+ *
+ *----------------------------------------------------------------------
+ */
 void print_sb()
 {
 	printf("--------------------- SB -------------------\n");
@@ -81,6 +121,19 @@ void print_sb()
 	printf("--------------------------------------------\n");
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * Log_Write
+ *
+ *  This function is for debugging purpose, prints the checkpoint region structure
+ *
+ * Parameters: NOTHING
+ *  
+ * Return: void
+ *
+ *----------------------------------------------------------------------
+ */
 void print_cp_region()
 {
 	printf("---------- CP region ----------\n");
@@ -95,6 +148,20 @@ void print_cp_region()
 	printf("-------------------------------\n");
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * Log_Write
+ *
+ *  This function is for debugging purpose, prints the information in given inode.
+ *
+ * Parameters: 
+ *		struct inode *inode: the inode to be printed 
+ *  
+ * Return: void
+ *
+ *----------------------------------------------------------------------
+ */
 void print_inode(struct inode *inode)
 {
 	printf("\t----- inode -----\n");
@@ -108,11 +175,21 @@ void print_inode(struct inode *inode)
 	printf("\t-----------------\n");
 }
 
-void print_root()
-{
 
-}
-
+/*
+ *----------------------------------------------------------------------
+ *
+ * assign_inum
+ *
+ *  This function assigns a inum to the given filename and update the coresponding directory(TODO root only for phase 1)
+ *
+ * Parameters:
+ *      const char *filename: the given filename.
+ *  
+ * Return: uint16_t, the assinged new inum
+ *
+ *----------------------------------------------------------------------
+ */
 uint16_t assign_inum(const char *filename)
 {
 	struct inode *root_inode = malloc(sizeof(struct inode));
@@ -130,14 +207,23 @@ uint16_t assign_inum(const char *filename)
 	File_Write(LFS_ROOT_INUM, 0, root_inode->size + sizeof(struct dir_entry), root_dir);
 	printf("DONE updating root\n");
 	return new_entry->inum;
-	// test for new root inode:
-	// void *temp_inode = malloc(sizeof(struct inode));
-	// Read_Inode_in_Ifile(LFS_ROOT_INUM, temp_inode);
-	// print_inode(temp_inode);
 }
 
 
-// given filename, return the inum. (TODO currently only for root directory)
+/*
+ *----------------------------------------------------------------------
+ *
+ * assign_inum
+ *
+ *  This function given filename, return the inum. (TODO currently only for root directory)
+ *
+ * Parameters:
+ *      const char *filename: the given filename.
+ *  
+ * Return: uint16_t, the corespoinding inum with the given filename
+ *
+ *----------------------------------------------------------------------
+ */
 uint16_t inum_lookup(const char *filename)
 {
 	struct inode *root_inode = malloc(sizeof(struct inode));
@@ -161,27 +247,16 @@ uint16_t inum_lookup(const char *filename)
     return LFS_UNUSED_ADDR;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * lfs_getattr (FUSE FUNCTION IMPLEMENTATION)
+ *
+ *----------------------------------------------------------------------
+ */
 static int lfs_getattr(const char* path, struct stat* stbuf){
 
 	int res = 0;
-
-	// memset(stbuf, 0, sizeof(struct stat));
- //    if (strcmp(path, "/") == 0) {
- //        stbuf->st_mode = S_IFDIR | 0777;
- //        stbuf->st_nlink = 2;
- //        stbuf->st_ino = 3;
- //    } else if (strcmp(path, "/hello_file") == 0) {
- //        stbuf->st_mode = S_IFREG | 0777;
- //        stbuf->st_nlink = 1;
- //        stbuf->st_size = strlen(hello_str);
- //        stbuf->st_ino = 17;
- //    } else if (strcmp(path, link_path) == 0) {
- //        stbuf->st_mode = S_IFLNK | 0777;
- //        stbuf->st_nlink = 1;
- //        stbuf->st_size = strlen(hello_path);
- //        stbuf->st_ino = 17;
- //    } else
- //        res = -ENOENT;
 
 	memset(stbuf, 0, sizeof(struct stat));
 	if (strcmp(path, "/") == 0) {
@@ -219,11 +294,49 @@ static int lfs_getattr(const char* path, struct stat* stbuf){
 	return res; 
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * lfs_readlink (FUSE FUNCTION IMPLEMENTATION)
+ *
+ *----------------------------------------------------------------------
+ */
 static int lfs_readlink(const char* path, char* buf, size_t size) {return 0;}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * lfs_mkdir (FUSE FUNCTION IMPLEMENTATION)
+ *
+ *----------------------------------------------------------------------
+ */
 static int lfs_mkdir(const char* path, mode_t mode) {return 0;}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * lfs_unlink (FUSE FUNCTION IMPLEMENTATION)
+ *
+ *----------------------------------------------------------------------
+ */
 static int lfs_unlink(const char* path) {return 0;}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * lfs_rmdir (FUSE FUNCTION IMPLEMENTATION)
+ *
+ *----------------------------------------------------------------------
+ */
 static int lfs_rmdir(const char* path) {return 0;}
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * lfs_open (FUSE FUNCTION IMPLEMENTATION)
+ *
+ *----------------------------------------------------------------------
+ */
 static int lfs_open(const char* path, struct fuse_file_info* fi) {
 	if(inum_lookup(path+1) == LFS_UNUSED_ADDR){
 		return -ENOENT;
@@ -233,6 +346,13 @@ static int lfs_open(const char* path, struct fuse_file_info* fi) {
 	return 0;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * lfs_read (FUSE FUNCTION IMPLEMENTATION)
+ *
+ *----------------------------------------------------------------------
+ */
 static int lfs_read(const char* path, char *buf, size_t size, off_t offset, struct fuse_file_info* fi){
 	memset(buf, 0, size);
 	printf("----- FUSE_READING %s size %ld offset %ld\n", path, size, offset);
@@ -260,6 +380,13 @@ static int lfs_read(const char* path, char *buf, size_t size, off_t offset, stru
 	return size;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * lfs_write (FUSE FUNCTION IMPLEMENTATION)
+ *
+ *----------------------------------------------------------------------
+ */
 static int lfs_write(const char* path, const char *buf, size_t size, off_t offset, struct fuse_file_info* fi){
 	printf("----- FUSE_写 %s size %ld offset %ld\n", path, size, offset);
     (void) fi;
@@ -271,10 +398,40 @@ static int lfs_write(const char* path, const char *buf, size_t size, off_t offse
 	return size;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * lfs_statfs (FUSE FUNCTION IMPLEMENTATION)
+ *
+ *----------------------------------------------------------------------
+ */
 static int lfs_statfs(const char* path, struct statvfs* stbuf){return 0;}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * lfs_release (FUSE FUNCTION IMPLEMENTATION)
+ *
+ *----------------------------------------------------------------------
+ */
 static int lfs_release(const char* path, struct fuse_file_info *fi){return 0;}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * lfs_opendir (FUSE FUNCTION IMPLEMENTATION)
+ *
+ *----------------------------------------------------------------------
+ */
 static int lfs_opendir(const char* path, struct fuse_file_info* fi){return 0;}
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * lfs_readdir (FUSE FUNCTION IMPLEMENTATION)
+ *
+ *----------------------------------------------------------------------
+ */
 static int lfs_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info* fi){
 	// 
 	(void) offset;
@@ -304,23 +461,34 @@ static int lfs_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_
 	return 0;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * lfs_releasedir (FUSE FUNCTION IMPLEMENTATION)
+ *
+ *----------------------------------------------------------------------
+ */
 static int lfs_releasedir(const char* path, struct fuse_file_info *fi){return 0;}
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * lfs_init (FUSE FUNCTION IMPLEMENTATION)
+ *
+ *----------------------------------------------------------------------
+ */
 static void* lfs_init(struct fuse_conn_info *conn){
 	init();
-
-	// uint16_t inum = assign_inum("hello_file");
-	// File_Create(inum, LFS_FILE_TYPE_FILE);
-	// struct inode *temp = malloc(sizeof(struct inode));
-	// Read_Inode_in_Ifile(inum, temp);
-	// printf("~~~~~~~~~~~~~~\n");
-	// print_inode(temp);
-
-	// File_Write(inum, 0, 10, "ABCABCABCV");
-
 	return 0;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * lfs_destroy (FUSE FUNCTION IMPLEMENTATION)
+ *
+ *----------------------------------------------------------------------
+ */
 static void lfs_destroy(void* private_data){
 	// called when the filesystem exits. 
 	printf("EXIT LFS!!!!!!! GOODBYE.再见。\n");	
@@ -345,6 +513,13 @@ static void lfs_destroy(void* private_data){
 	}
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * lfs_create (FUSE FUNCTION IMPLEMENTATION)
+ *
+ *----------------------------------------------------------------------
+ */
 static int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi){
 	// assign inum to the given filename, then call File_Create in file layer. 
 	uint16_t inum = assign_inum(path+1);
@@ -355,9 +530,31 @@ static int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi){
 	return 0;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * lfs_link (FUSE FUNCTION IMPLEMENTATION)
+ *
+ *----------------------------------------------------------------------
+ */
 static int lfs_link(const char* from, const char* to){return 0;}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * lfs_symlink (FUSE FUNCTION IMPLEMENTATION)
+ *
+ *----------------------------------------------------------------------
+ */
 static int lfs_symlink(const char* to, const char* from){return 0;}
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * lfs_truncate (FUSE FUNCTION IMPLEMENTATION)
+ *
+ *----------------------------------------------------------------------
+ */
 static int lfs_truncate(const char* path, off_t size){
 	uint16_t inum = inum_lookup(path+1);
 	struct inode *inode = malloc(sizeof(struct inode));
@@ -382,11 +579,41 @@ static int lfs_truncate(const char* path, off_t size){
 	return 0;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * lfs_rename (FUSE FUNCTION IMPLEMENTATION)
+ *
+ *----------------------------------------------------------------------
+ */
 static int lfs_rename(const char* from, const char* to){return 0;}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * lfs_chmod (FUSE FUNCTION IMPLEMENTATION)
+ *
+ *----------------------------------------------------------------------
+ */
 static int lfs_chmod(const char* path, mode_t mode){return 0;}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * lfs_chown (FUSE FUNCTION IMPLEMENTATION)
+ *
+ *----------------------------------------------------------------------
+ */
 static int lfs_chown(const char* path, uid_t uid, gid_t gid){return 0;}
 
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * fuse operations structure needed by fuse_main to identify the implementation choice for FUSE
+ *
+ *----------------------------------------------------------------------
+ */
 static struct fuse_operations lfs_oper = {
 	.getattr = lfs_getattr,
 	.readlink = lfs_readlink,
@@ -411,6 +638,7 @@ static struct fuse_operations lfs_oper = {
 	.chmod = lfs_chmod,
 	.chown = lfs_chown,
 };
+
 
 
 int main(int argc, char *argv[])
@@ -469,51 +697,3 @@ int main(int argc, char *argv[])
     }
     return fuse_main(nargc, nargv, &lfs_oper, NULL);
 }
-
-
-// int main(int argc, char const *argv[])
-// {
-// 	init();
-// 	print_sb();
-
-// 	uint16_t n = inum_lookup(".");
-// 	printf("!!!@@@%u\n", n);
-
-// 	// printf("Manipulating FILE 2\n");
-// 	// File_Create(2, LFS_FILE_TYPE_FILE);
-// 	// char str[1200];
-// 	// for(int i = 0; i < 1200; i ++) str[i] = 'a';
-// 	// File_Write(2, 0, 1200, &str);
-// 	// printf("The size of file 2 at this point should be 1200!\n");
-
-// 	// char str1[700];
-// 	// for(int i = 0; i < 700; i ++) str1[i] = 'b';
-// 	// File_Write(2, 800, 700, &str1);
-// 	// printf("The size of file 2 at this point should be 1500!\n");	
-
-// 	// char str2[400];
-// 	// for(int i = 0; i < 400; i ++) str2[i] = 'c';
-// 	// File_Write(2, 900, 400, &str2);
-// 	// printf("The size of file 2 at this point should be 1500!\n");
-
-// 	// char str3[1000];
-// 	// for(int i = 0; i < 1000; i ++) str3[i] = 'x';
-// 	// File_Write(2, 1400, 1000, &str3);
-// 	// printf("The size of file 2 at this point should be 2400!\n");
-
-// 	// printf("Manipulating FILE 3\n");
-// 	// File_Create(3, LFS_FILE_TYPE_FILE);
-// 	// File_Write(3, 0, 1200, &str);
-// 	// printf("The size of file 3 at this point should be 1200!\n");
-// 	// char str4[2000];
-// 	// for(int i = 0; i < 2000; i ++) str4[i] = 'x';
-// 	// File_Write(3, 1200, 2000, &str4);
-// 	// printf("The size of file 3 at this point should be 3200!\n");
-
-// 	// print_cp_region();
-
-// 	if (Flash_Close(flash) != 0) {
-// 		printf("ERROR: %s\n", strerror(errno));
-// 	}
-// 	return 0;
-// }
