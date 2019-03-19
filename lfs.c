@@ -494,6 +494,7 @@ static void lfs_destroy(void* private_data){
 	printf("EXIT LFS!!!!!!! GOODBYE.再见。\n");	
 
 	// 1. write the most recent checkpoint region. 
+	cp_region->last_seg_addr.seg_num = tail_seg->seg_num;
 	void *cp_buffer = malloc(s_block_byte);
 	memcpy(cp_buffer, cp_region, sizeof(struct checkpoint_region));
 	// block=0 is an exception for the situation.
@@ -505,7 +506,8 @@ static void lfs_destroy(void* private_data){
 	// 3. write superblock to flash.
 	void *sb_buffer = malloc(lfs_sb->seg_size * s_block_byte);
 	memcpy(sb_buffer, lfs_sb, sizeof(struct superblock));
-	Flash_Write(flash, 0, lfs_sb->seg_size * s_block_byte, sb_buffer);
+	Flash_Erase(flash, 0, lfs_sb->seg_size * lfs_sb->b_size / FLASH_SECTORS_PER_BLOCK);
+	Flash_Write(flash, 0, lfs_sb->seg_size * lfs_sb->b_size, sb_buffer);
 
 	// Close the flash.
 	if (Flash_Close(flash) != 0) {
