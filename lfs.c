@@ -151,7 +151,7 @@ void print_cp_region()
 /*
  *----------------------------------------------------------------------
  *
- * Log_Write
+ * print_inode
  *
  *  This function is for debugging purpose, prints the information in given inode.
  *
@@ -213,7 +213,7 @@ uint16_t assign_inum(const char *filename)
 /*
  *----------------------------------------------------------------------
  *
- * assign_inum
+ * inum_lookup
  *
  *  This function given filename, return the inum. (TODO currently only for root directory)
  *

@@ -12,7 +12,7 @@ lfs_SRCS = flash.c log.c lfs.c file.c
 
 mklfs_SRCS = flash.c mklfs.c
 
-lfsck_SRCS = flash.c lfsck.c
+lfsck_SRCS = flash.c lfsck.c file.c log.c
 
 lfs : $(lfs_SRCS)
 	$(CC) $(CFLAGS) $(lfs_SRCS) $(FUSE_FLAGS) -o lfs

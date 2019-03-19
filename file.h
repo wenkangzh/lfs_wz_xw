@@ -11,6 +11,10 @@
 #define LFS_FILE_TYPE_FILE 1
 #define LFS_FILE_TYPE_DIR 2
 
+extern struct superblock *lfs_sb;
+extern struct checkpoint_region *cp_region;
+extern int s_block_byte;
+
 struct addr;
 struct inode;
 

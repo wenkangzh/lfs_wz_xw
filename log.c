@@ -88,7 +88,7 @@ int write_tail_seg_to_flash()
 		printf("ERROR: %s\n", strerror(errno));
 		return i;
 	}
-	
+
 	tail_seg->seg_num++; // TODO get next segment number from most recent checkpoint region. 
 	memset(tail_seg->blocks, 0, lfs_sb->seg_size * lfs_sb->b_size * FLASH_SECTOR_SIZE);
 	next_block_in_tail = 0;
