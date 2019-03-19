@@ -9,12 +9,12 @@ int next_block_in_tail = 0;
  *
  * Log_Read
  *
- *  This function 
+ *  This function read a block given a logAddress structure with length.
  *
  * Parameters:
- *      logAddress: 
- *		length: 
- * 		buffer: 
+ *      logAddress: The given "address" in struct addr structure. 
+ *		length: the length to be read
+ * 		buffer: the destination of the operation.
  *  
  * Return: 
  *
@@ -156,13 +156,13 @@ int Log_Write(int inum, int block, int length, void* buffer, struct addr *logAdd
  *
  * Log_Free
  *
- *  This function 
+ *  This function frees a block with given logAddress
  *
  * Parameters:
- *      logAddress: 
- *		length:
+ *      logAddress: the address indicates the block to be free.
+ *		length: 	the number of bytes to free
  *  
- * Return: 
+ * Return: 0 - success, 1 - failure
  *
  *----------------------------------------------------------------------
  */
