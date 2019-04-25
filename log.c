@@ -13,8 +13,9 @@ int next_block_in_tail = 0;
 
 struct LinkedList *head;
 struct LinkedList *tail;
-int max_size_seg_cache = 1;
+
 int size_of_seg_cache = 0;
+int write_counter = 0;
 /*
  *----------------------------------------------------------------------
  *
@@ -120,7 +121,6 @@ int Log_Write(int inum, int block, int length, void* buffer, struct addr *logAdd
 	printf("ADRESS OF NEW WRITTEN BLOCK IN LOG: %u %u \n", logAddress->seg_num, logAddress->block_num);
 	
 	SC_print();
-
 	return i;
 }
 
@@ -160,6 +160,13 @@ int write_tail_seg_to_flash()
 	if(i != 0){
 		printf("ERROR: %s\n", strerror(errno));
 		return i;
+	}
+
+	// Update Checkpoint region
+	write_counter ++;
+	if(write_counter % periodic_cp_interval == 0){
+		update_cp_region();
+		write_counter = 0;
 	}
 
 	// Update segment cache

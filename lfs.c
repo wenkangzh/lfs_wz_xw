@@ -27,6 +27,9 @@ struct checkpoint_region *cp_region = NULL;
 int s_block_byte = 0;
 char *flash_file_name = NULL;
 
+int max_size_seg_cache;
+int periodic_cp_interval;
+
 /*
  *----------------------------------------------------------------------
  *
@@ -319,6 +322,15 @@ uint16_t assign_inum(const char *filename, uint16_t dir_inum)
 	// return new_entry->inum;
 }
 
+void update_cp_region(){
+	// 1. write the most recent checkpoint region. 
+	cp_region->last_seg_addr.seg_num = tail_seg->seg_num;
+	void *cp_buffer = malloc(s_block_byte);
+	memcpy(cp_buffer, cp_region, sizeof(struct checkpoint_region));
+	// block=0 is an exception for the situation.
+	Log_Write(-1, 0, s_block_byte, cp_buffer, &(lfs_sb->checkpoint_addr));
+	printf("~~~~~~~~~~~~~~~A NEW CHECKPOINTING REGION HAS BEEN ESTABLISHED!~~~~~~~~~~~~~~~\n");
+}
 
 /*
  *----------------------------------------------------------------------
@@ -598,12 +610,13 @@ static void lfs_destroy(void* private_data){
 	// called when the filesystem exits. 
 	printf("EXIT LFS!!!!!!! GOODBYE.再见。\n");	
 
-	// 1. write the most recent checkpoint region. 
-	cp_region->last_seg_addr.seg_num = tail_seg->seg_num;
-	void *cp_buffer = malloc(s_block_byte);
-	memcpy(cp_buffer, cp_region, sizeof(struct checkpoint_region));
-	// block=0 is an exception for the situation.
-	Log_Write(-1, 0, s_block_byte, cp_buffer, &(lfs_sb->checkpoint_addr));
+	//1. write the most recent checkpoint region. 
+	update_cp_region();
+	// cp_region->last_seg_addr.seg_num = tail_seg->seg_num;
+	// void *cp_buffer = malloc(s_block_byte);
+	// memcpy(cp_buffer, cp_region, sizeof(struct checkpoint_region));
+	// // block=0 is an exception for the situation.
+	// Log_Write(-1, 0, s_block_byte, cp_buffer, &(lfs_sb->checkpoint_addr));
 
 	// 2. write the tail segment.
 	write_tail_seg_to_flash();
@@ -619,6 +632,7 @@ static void lfs_destroy(void* private_data){
 		printf("ERROR: %s\n", strerror(errno));
 	}
 }
+
 
 /*
  *----------------------------------------------------------------------
@@ -771,8 +785,8 @@ int main(int argc, char *argv[])
 
 #define NARGS 3
 
-    int cache = 4;
-    int interval = 4;
+    max_size_seg_cache = 4;
+    periodic_cp_interval = 4;
     int start = 4;
     int stop = 8;
 
@@ -788,10 +802,10 @@ int main(int argc, char *argv[])
 					long_options, &long_index)) != -1){
 		switch (opt) {
 			case 's':
-				cache = (int) strtol(optarg, (char **)NULL, 10);
+				max_size_seg_cache = (int) strtol(optarg, (char **)NULL, 10);
 				break;
 			case 'i':
-				interval = (int) strtol(optarg, (char **)NULL, 10);
+				periodic_cp_interval = (int) strtol(optarg, (char **)NULL, 10);
 				break;
 			case 'c':
 				start = (int) strtol(optarg, (char **)NULL, 10);

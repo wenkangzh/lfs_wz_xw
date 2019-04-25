@@ -84,6 +84,6 @@ void print_inode(struct inode *inode);
 uint16_t inum_lookup(const char *path);
 uint16_t inum_lookup_from_parent_inum(char *filename, uint16_t parent_inum);
 void substring(char s[], char sub[], int p, int l);
-
+void update_cp_region();
 
 #endif

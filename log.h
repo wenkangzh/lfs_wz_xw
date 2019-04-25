@@ -20,6 +20,8 @@
 
 extern Flash flash;
 extern struct segment *tail_seg;
+extern int max_size_seg_cache;
+extern int periodic_cp_interval;
 
 #define SUPERBLOCK_SEG_SIZE 1
 #define LFS_SEG(x) x+SUPERBLOCK_SEG_SIZE
