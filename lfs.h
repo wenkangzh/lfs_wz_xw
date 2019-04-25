@@ -43,6 +43,8 @@ struct addr{
 struct inode{
 	uint16_t inum;							// inum
 	uint16_t type;							// type of the file, file or directory
+	mode_t mode;							// mode of the file
+	time_t lst_mdf;							// last modification time
 	int size;								// size of the file.
 	struct addr ptrs[4];
 	// TODO In phase 2, implement a indirect pointer to a block of direct pointers
@@ -51,6 +53,7 @@ struct inode{
 struct checkpoint_region{
 	time_t timestamp;						// timestamp, time_t is uint64_t
 	struct addr last_seg_addr;				// last segment written
+	uint32_t next_inum;						// the next available inum in the system. 
 	uint32_t segment_usage_table;			// PLACEHOLDER for segment usage table. 
 	struct inode ifile_inode;				// inode of THE ifile
 };
@@ -78,6 +81,7 @@ void init_sb();
 void print_sb();
 void print_cp_region();
 void print_inode(struct inode *inode);
+uint16_t inum_lookup(const char *path);
 
 
 #endif

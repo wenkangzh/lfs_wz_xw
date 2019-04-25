@@ -129,6 +129,7 @@ int main(int argc, char *argv[])
 	init_cp->timestamp = time(NULL);
 	init_cp->last_seg_addr.seg_num = LFS_SEG(0);	// 也就是1
 	init_cp->last_seg_addr.block_num = 0;
+	init_cp->next_inum = 2;							// initially the next available inum is 2, after root directory
 	init_cp->segment_usage_table = 0;				// TODO dummy
 	init_cp->ifile_inode.inum = LFS_IFILE_INUM;
 	init_cp->ifile_inode.type = LFS_FILE_TYPE_IFILE;
