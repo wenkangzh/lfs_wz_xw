@@ -36,6 +36,13 @@ struct segment{
 	void *blocks;					// blocks in 1 segment
 };
 
+struct LinkedList{
+	void *segment;
+	uint16_t seg_num;
+	struct LinkedList * next;
+	struct LinkedList * prev;
+};
+
 int Log_Read(struct addr *logAddress, int length, void* buffer);
 void updateInode(int inum, int block, struct addr *block_addr, int length);
 int write_tail_seg_to_flash();
@@ -44,4 +51,9 @@ int Log_Free(uint32_t logAddress, int length);
 void update_sb();
 int logAddr_To_Sectors(struct addr *addr);
 int segNum_To_Sectors(uint16_t seg_num);
+int Seg_Cache_init(int N);
+void SC_trim();
+int SC_push();
+int SC_get(uint16_t segment_num, void *buffer);
+void SC_print();
 #endif
