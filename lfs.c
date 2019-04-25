@@ -204,10 +204,16 @@ void print_inode(struct inode *inode)
  */
 uint16_t find_last_dir(const char* path, char *new_dir)
 {
+	printf("===== find_last_dir(%s)\n", path);
 	int i;
 	for(i = strlen(path) - 1; i >= 0; i  --){
 		if(path[i]  == '/') break;
 	}
+	if(i == 0){
+		strcpy(new_dir, path+1);
+		return LFS_ROOT_INUM;
+	}
+
 	char* parent_path = malloc(i);
 	substring((char*)path, parent_path, 0, i);
 	substring((char*)path, new_dir, i+1, strlen(path));
@@ -233,6 +239,10 @@ uint16_t inum_lookup(const char *path)
 {
 	printf("===== inum_lookup(%s)\n", path);
 	uint16_t parent_inum = LFS_ROOT_INUM;
+
+	if(strcmp(path, "/") == 0){
+		return parent_inum;
+	}
 
     int j = 1, i = 1;
     for(i = 1; i <= strlen(path); i++){
@@ -433,10 +443,16 @@ static int lfs_mkdir(const char* path, mode_t mode) {
  *----------------------------------------------------------------------
  *
  * lfs_unlink (FUSE FUNCTION IMPLEMENTATION)
+ * 
+ * Remove (delete) the given file, symbolic link, hard link, or special node—
+ * but NOT a directory. Note that if you support hard links, unlink only
+ * deletes the data when the last hard link is removed.
  *
  *----------------------------------------------------------------------
  */
-static int lfs_unlink(const char* path) {return 0;}
+static int lfs_unlink(const char* path) {
+	return 0;
+}
 
 /*
  *----------------------------------------------------------------------
@@ -554,16 +570,18 @@ static int lfs_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_
 	(void) offset;
 	(void) fi;
 
+	printf("===== lfs_readdir(%s)\n", path);
+
 	uint16_t inum = inum_lookup(path);
 
 	struct inode *root_inode = malloc(sizeof(struct inode));
 	Read_Inode_in_Ifile(inum, root_inode);
+	printf("^^^^^^^^^^^^^^^^^^^^^^^SIZE: %d\n", root_inode->size);
 	void *root_buffer = malloc(root_inode->size);
 	File_Read(inum, 0, root_inode->size, root_buffer);
 	struct dir *root = root_buffer;
-	printf("+++ %s : %u\n", root->name, root->size);
+	printf("DIR+++ %s : %u\n", root->name, root->size);
 	int num_entries = root->size;
-	printf("DIR: %s\n", root->name);
 	struct dir_entry *ptr = root_buffer;
 	for (int i = 0; i < num_entries; ++i)
 	{
@@ -711,7 +729,36 @@ static int lfs_truncate(const char* path, off_t size){
  *
  *----------------------------------------------------------------------
  */
-static int lfs_rename(const char* from, const char* to){return 0;}
+static int lfs_rename(const char* from, const char* to){
+	printf("===== lfs_rename(%s, %s)\n", from, to);
+	char from_filename[LFS_FILE_NAME_MAX_LEN];
+	uint16_t parent_inum = find_last_dir(from, from_filename);
+	printf("\tfind_last_dir(%s) returned %u\n", from, parent_inum);
+	char to_filename[LFS_FILE_NAME_MAX_LEN];
+	parent_inum = find_last_dir(to, to_filename);
+	printf("\tfind_last_dir(%s) returned %u\n", to, parent_inum);
+
+	struct inode *parent_inode = malloc(sizeof(struct inode));
+	Read_Inode_in_Ifile(parent_inum, parent_inode);
+	void *parent_buffer = malloc(parent_inode->size);
+	File_Read(parent_inum, 0, parent_inode->size, parent_buffer);
+	struct dir *parent_dir = parent_buffer;
+
+	printf("^^^^^^^^^^^^^^^^^^^^^^^SIZE: %d\n", parent_inode->size);
+	struct dir_entry *entry_ptr;
+	for(int i = 0; i < parent_dir->size; i++){
+		entry_ptr = parent_buffer + sizeof(struct dir) + (sizeof(struct dir_entry) * i);
+		printf("^^^^^^^^^^^^^^^^^^^^^^^%s\n", entry_ptr->name);
+		if(strcmp(from_filename, entry_ptr->name) == 0){
+			strcpy(entry_ptr->name, to_filename);
+			break;
+		}
+	}
+
+	File_Write(parent_inum, 0, parent_inode->size, parent_buffer);
+
+	return 0;
+}
 
 /*
  *----------------------------------------------------------------------
