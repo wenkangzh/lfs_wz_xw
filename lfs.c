@@ -201,52 +201,69 @@ void print_inode(struct inode *inode)
  */
 uint16_t find_last_dir(const char* path, char *new_dir)
 {
-	char *path_backup = strdup(path);
-
-	printf("===== find_last_dir(%s)\n", path);
-	const char d[2] = "/";
-	uint16_t inum = LFS_ROOT_INUM; 
-
-	// two situations: in the root or not
-	int i, count;
-	char *p_temp = (char*) path;
-	for(i=0, count=0; p_temp[i]; i++)
-		count += (p_temp[i] == '/');
-	if(count == 1){
-		// root 
-		if(new_dir != NULL)
-			strcpy(new_dir, path+1);
-		strcpy((char*)path, path_backup);
-		return inum;
+	int i;
+	for(i = strlen(path) - 1; i >= 0; i  --){
+		if(path[i]  == '/') break;
 	}
-
-	// other than root, we find the last directory by looping through the path
-	char *one;
-	char *prev;
-	/* get the first token */
-	char *temp = strtok((char*) path,d);
-	one = temp;
-	printf( "-%s\n", one);
-	char *str_buf = malloc(LFS_FILE_NAME_MAX_LEN);
-
-	/* walk through other tokens */
-	while( (temp= strtok(NULL, d)) != NULL ) {
-		prev = one;
-		one = temp;
-		strcat(str_buf, "/");
-		strcat(str_buf, prev);
-		// here prev is null in the first iteration. 
-		// find the inum of current iteration in the last directory file. 
-		inum = inum_lookup(str_buf); // TODO NEED change prev in the function to be a whole pathname
-		printf( "-%s\n", one);
-	}
-	printf("PREV %s ONE %s\n", prev, one);
-	// here "one" is the directory that we need to mkdir
-	if(new_dir != NULL)
-			strcpy(new_dir, one);
-	strcpy((char*)path, path_backup);
-	return inum;
+	char* parent_path = malloc(i);
+	substring((char*)path, parent_path, 0, i);
+	substring((char*)path, new_dir, i+1, strlen(path));
+	return  inum_lookup(parent_path);
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * inum_lookup
+ *
+ *  This function given filename, return the inum. (TODO currently only for root directory)
+ *
+ * Parameters:
+ *      const char *filename: the given filename.
+ *  
+ * Return: uint16_t, the corespoinding inum with the given filename
+ *
+ *----------------------------------------------------------------------
+ */
+uint16_t inum_lookup(const char *path)
+{
+	printf("===== inum_lookup(%s)\n", path);
+	uint16_t parent_inum = LFS_ROOT_INUM;
+
+    int j = 1, i = 1;
+    for(i = 1; i <= strlen(path); i++){
+        if(path[i] == '/' || i ==  strlen(path)){
+            char *filename = malloc(i - j);
+            substring((char*)path, filename, j, i);
+            j = i + 1;
+            printf("%s\n", filename);
+            parent_inum = inum_lookup_from_parent_inum(filename, parent_inum);
+        }
+    }
+    return parent_inum;
+
+}
+
+uint16_t inum_lookup_from_parent_inum(char *filename, uint16_t parent_inum)
+{
+	printf("===== inum_lookup_from_parent_inum(%s, %u)\n", filename, parent_inum);
+	struct inode *parent_inode = malloc(sizeof(struct inode));
+	Read_Inode_in_Ifile(parent_inum, parent_inode);
+	void *parent_buffer = malloc(parent_inode->size);
+	File_Read(parent_inum, 0, parent_inode->size, parent_buffer);
+	struct dir *parent_dir = parent_buffer;
+	struct dir_entry *entry_ptr;
+	for(int i = 0; i < parent_dir->size; i++){
+		entry_ptr = parent_buffer + sizeof(struct dir) + (sizeof(struct dir_entry) * i);
+		printf("Comparing %s %s\n", filename, entry_ptr->name);
+		if(strcmp(filename, entry_ptr->name) == 0){
+			return entry_ptr->inum;
+		}
+	}
+	return LFS_UNUSED_ADDR;
+}
+
 
 /*
  *----------------------------------------------------------------------
@@ -302,49 +319,6 @@ uint16_t assign_inum(const char *filename, uint16_t dir_inum)
 	// return new_entry->inum;
 }
 
-
-/*
- *----------------------------------------------------------------------
- *
- * inum_lookup
- *
- *  This function given filename, return the inum. (TODO currently only for root directory)
- *
- * Parameters:
- *      const char *filename: the given filename.
- *  
- * Return: uint16_t, the corespoinding inum with the given filename
- *
- *----------------------------------------------------------------------
- */
-uint16_t inum_lookup(const char *path)
-{
-	printf("===== inum_lookup(%s)\n", path);
-	if(strcmp(path, "/") == 0)
-		return LFS_ROOT_INUM;
-	// path is the whole path. 
-	char *filename = malloc(LFS_FILE_NAME_MAX_LEN);
-	uint16_t dir_inum = find_last_dir(path, filename);
-	struct inode *root_inode = malloc(sizeof(struct inode));
-	// get the inode of TODO root directory
-    Read_Inode_in_Ifile(dir_inum, root_inode);
-    // now read the whole root directory.
-    void *root_buffer = malloc(root_inode->size);
-    File_Read(dir_inum, 0, root_inode->size, root_buffer);
-    struct dir *root_dir = root_buffer;
-    struct dir_entry *entry_ptr;
-    for (int i = 0; i < root_dir->size; ++i)
-    {
-    	entry_ptr = root_buffer + sizeof(struct dir) + (sizeof(struct dir_entry) * i);
-    	printf("Comparing %s %s\n", path, entry_ptr->name);
-    	if(strcmp(filename, entry_ptr->name) == 0){
-    		return entry_ptr->inum;
-    	}
-    	/* code */
-    }
-    // for default, if the lookup is failed, then return the 0xFFFF as error code.
-    return LFS_UNUSED_ADDR;
-}
 
 /*
  *----------------------------------------------------------------------
@@ -420,6 +394,7 @@ static int lfs_mkdir(const char* path, mode_t mode) {
 	printf("===== lfs_mkdir(%s)\n", path);
 	// the given directory name is created under 
 	char new_dir[LFS_FILE_NAME_MAX_LEN];
+	memset(new_dir, 0, LFS_FILE_NAME_MAX_LEN);
 	uint16_t parent_inum = find_last_dir(path, new_dir);
 	printf("PARENT: %u - NEW DIR: %s\n", parent_inum, new_dir);
 	// TODO need a new inum for the new directory.
@@ -776,6 +751,14 @@ static struct fuse_operations lfs_oper = {
 	.chmod = lfs_chmod,
 	.chown = lfs_chown,
 };
+
+void substring(char s[], char sub[], int p, int l) {
+   int c = 0;
+   while (p + c < l) {
+      sub[c] = s[p + c];
+      c++;
+   }
+}
 
 
 

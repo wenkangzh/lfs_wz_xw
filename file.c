@@ -255,12 +255,12 @@ void Read_Inode_in_Ifile(int inum_of_file, struct inode *inode_inum){
 	memcpy(inode_inum, ifile_blk + (inum_of_file * sizeof(struct inode)) % s_block_byte, sizeof(struct inode));
 }
 
-void write_inode_in_ifile(int inum_of_file, struct inode *inode_inum)
-{
-	void  *ifile_blk = malloc(s_block_byte);
-	int blk_in_ifile = (inum_of_file * sizeof(struct inode)) / s_block_byte;
+// void write_inode_in_ifile(int inum_of_file, struct inode *inode_inum)
+// {
+// 	void  *ifile_blk = malloc(s_block_byte);
+// 	int blk_in_ifile = (inum_of_file * sizeof(struct inode)) / s_block_byte;
 
-}
+// }
 
 void Read_Block_in_Ifile(int block_ifile, void *buffer){
 	struct addr *block_addr = malloc(sizeof(struct addr));
