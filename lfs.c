@@ -20,7 +20,7 @@
 #include "flash.h"
 #include <unistd.h>
 
-
+extern int max_size_seg_cache;
 
 struct superblock *lfs_sb = NULL;
 struct checkpoint_region *cp_region = NULL;
@@ -71,6 +71,8 @@ void init()
 	memset(tail_seg->blocks, 0, lfs_sb->seg_size * lfs_sb->b_size * FLASH_SECTOR_SIZE); // clean the memory
 	// here the blocks in the tail segment are all allocated memory space.
 
+	// Init Segment Cache
+	Seg_Cache_init(max_size_seg_cache);
 
 }
 

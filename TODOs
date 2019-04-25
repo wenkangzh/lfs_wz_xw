@@ -1,0 +1,13 @@
+1.	Log_Read/Log_Write -> cache			- Wan (FINISHED, DEBUGGING NEEDED)
+2.	Log_Free					- Wan (FINISHED, DEBUGGING NEEDED)
+3.	File_Free
+4.	File_Read -> Indirect pointers
+5.	Directories -> Full functionality (Hierarchicy). - Zhou DONE 04/24
+6.	Periodically checkpointing (using given N)
+7.	Log Cleaner
+8.	Crash Recovery
+9.	Extra Credit
+
+
+
+for i in {1..5}; do cp a $i; done
