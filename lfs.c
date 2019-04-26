@@ -614,6 +614,7 @@ static int lfs_releasedir(const char* path, struct fuse_file_info *fi){return 0;
  */
 static void* lfs_init(struct fuse_conn_info *conn){
 	init();
+	printf("?????????? %d %lu\n", s_block_byte, sizeof(struct inode));
 	return 0;
 }
 

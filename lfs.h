@@ -45,8 +45,10 @@ struct inode{
 	uint16_t type;							// type of the file, file or directory
 	mode_t mode;							// mode of the file
 	time_t lst_mdf;							// last modification time
+	uint16_t n_links;						// # of hard links
 	int size;								// size of the file.
 	struct addr ptrs[4];
+	char padding[18];
 	// TODO In phase 2, implement a indirect pointer to a block of direct pointers
 };
 
