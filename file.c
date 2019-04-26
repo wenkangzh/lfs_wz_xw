@@ -255,12 +255,21 @@ void Read_Inode_in_Ifile(int inum_of_file, struct inode *inode_inum){
 	memcpy(inode_inum, ifile_blk + (inum_of_file * sizeof(struct inode)) % s_block_byte, sizeof(struct inode));
 }
 
-// void write_inode_in_ifile(int inum_of_file, struct inode *inode_inum)
-// {
-// 	void  *ifile_blk = malloc(s_block_byte);
-// 	int blk_in_ifile = (inum_of_file * sizeof(struct inode)) / s_block_byte;
+void write_inode_in_ifile(int inum_of_file, struct inode *inode_inum)
+{
+	void  *ifile_blk = malloc(s_block_byte);
+	int blk_in_ifile = (inum_of_file * sizeof(struct inode)) / s_block_byte;
+	// TODO If number of blocks in ifile is not enough to contain this inode
+	if(0){
 
-// }
+	}
+	struct addr *ifile_addr = malloc(sizeof(struct addr));
+	ifile_addr->seg_num = cp_region->ifile_inode.ptrs[blk_in_ifile].seg_num;
+	ifile_addr->block_num = cp_region->ifile_inode.ptrs[blk_in_ifile].block_num;
+	Log_Read(ifile_addr, s_block_byte, ifile_blk);
+	memcpy(ifile_blk + (inum_of_file * sizeof(struct inode)) % s_block_byte, inode_inum, sizeof(struct inode));
+	Log_Write(LFS_IFILE_INUM, blk_in_ifile, s_block_byte, ifile_blk, &(cp_region->ifile_inode.ptrs[blk_in_ifile]));
+}
 
 void Read_Block_in_Ifile(int block_ifile, void *buffer){
 	struct addr *block_addr = malloc(sizeof(struct addr));
