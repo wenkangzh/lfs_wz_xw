@@ -9,13 +9,16 @@
 
 Flash flash = NULL;
 struct segment *tail_seg = NULL;
-int next_block_in_tail = 0;
+int next_block_in_tail;
 
 struct LinkedList *head;
 struct LinkedList *tail;
 
 int size_of_seg_cache = 0;
 int write_counter = 0;
+
+void *segUsageTable;
+int free_segment_counter;
 /*
  *----------------------------------------------------------------------
  *
@@ -108,9 +111,12 @@ int Log_Write(int inum, int block, int length, void* buffer, struct addr *logAdd
 	(logAddress)->seg_num = tail_seg->seg_num;
 	(logAddress)->block_num = next_block_in_tail++;
 
+	// Update Segment Summary Table
+	set_seg_summary(next_block_in_tail-1, inum);
+
 	int i = 0;
 	// check if tail_seg is full, TODO RESERVE 1 block for checkpoint region.
-	if (next_block_in_tail == lfs_sb->seg_size - 1){
+	if (next_block_in_tail == lfs_sb->seg_size){
 		i = write_tail_seg_to_flash();
 	}
 
@@ -169,6 +175,9 @@ int write_tail_seg_to_flash()
 		write_counter = 0;
 	}
 
+	// Update segment usage table
+	update_segment_usage_table(tail_seg->seg_num ,1);
+
 	// Update segment cache
 	if(SC_push() == -1)
 		printf("FAILED TO INSERT THIS SEGMENT INTO SEGMENT CACHE!\n");
@@ -177,7 +186,8 @@ int write_tail_seg_to_flash()
 
 	tail_seg->seg_num++; // TODO get next segment number from most recent checkpoint region. 
 	memset(tail_seg->blocks, 0, lfs_sb->seg_size * lfs_sb->b_size * FLASH_SECTOR_SIZE);
-	next_block_in_tail = 0;
+	// Initialize segment summary table
+	init_seg_summary();
  
 	return 0;
 }
@@ -197,11 +207,81 @@ int write_tail_seg_to_flash()
  *
  *----------------------------------------------------------------------
  */
-int Log_Free(uint32_t logAddress, int length)
+int Log_Free(struct addr logAddress, int length)
 {
+	// 	Find involved segments [s0...sn]
+
+	//	Modify each segment s from [s0...sn], write into flash right after modification
+
 	return 0;
 }
+int free_single_segment(struct addr seg_addr, int offset){
+	//	Read the segment
 
+	//	Mark the segment as dead
+
+	//	Erase data starts at offset
+
+	//	Insert it as a new segment
+
+	return 0;
+}
+/*
+ *----------------------------------------------------------------------
+ *
+ * Segment Summary Table
+ *
+ *----------------------------------------------------------------------
+ */
+void init_seg_summary(){
+	int total = size_of_seg_cache * lfs_sb->b_size * FLASH_SECTOR_SIZE / 16;
+	uint16_t t = 0xffff;
+	for(int i = 0; i < total; i ++){
+		memcpy(tail_seg->blocks + i * 16, &t, sizeof(uint16_t));
+	}
+	next_block_in_tail = size_seg_summary;
+}
+void set_seg_summary(int block_num, uint16_t inum){
+	memcpy(tail_seg->blocks + block_num * 16, &inum, sizeof(inum));
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Segment Usage Table
+ *
+ *----------------------------------------------------------------------
+ */
+void load_segment_usage_table(){
+	// 	num_of_block_seg_usage_table represents number of blocks being reserved for segment usage table
+	int num_of_block_seg_usage_table = lfs_sb->seg_num * sizeof(uint8_t) / (lfs_sb->seg_size * FLASH_SECTOR_SIZE);
+	if(lfs_sb->seg_num * sizeof(uint8_t) % (lfs_sb->seg_num * FLASH_SECTOR_SIZE) != 0) num_of_block_seg_usage_table ++;
+	segUsageTable = malloc(num_of_block_seg_usage_table);
+	Log_Read(&(lfs_sb->seg_usage_table_addr), lfs_sb->seg_num, segUsageTable);
+	for(int i = 0; i < num_of_block_seg_usage_table; i ++){
+		uint8_t *temp = segUsageTable + i;
+		if(*temp == 0) free_segment_counter ++;
+	}
+}
+void update_segment_usage_table(int seg_num, int isUnvailble){
+	memset(segUsageTable + seg_num, isUnvailble, sizeof(uint8_t));
+}
+void write_segment_usage_table(){
+	int start_sector = (lfs_sb->seg_usage_table_addr.seg_num * lfs_sb->seg_size + lfs_sb->seg_usage_table_addr.block_num) * lfs_sb->b_size;
+	int num_sector = sizeof(segUsageTable) / FLASH_SECTOR_SIZE + (sizeof(segUsageTable) % FLASH_SECTOR_SIZE != 0 ? 1 : 0);
+	Flash_Write(flash, start_sector, num_sector, segUsageTable);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Associative Functions
+ *
+ *  This part consists of functions that are used for general-purpose
+ *
+ *----------------------------------------------------------------------
+ */
 void update_sb()
 {
 	Flash_Write(flash, 0, lfs_sb->seg_size * lfs_sb->b_size * lfs_sb->seg_num, lfs_sb);
@@ -215,6 +295,9 @@ int logAddr_To_Sectors(struct addr *addr)
 int segNum_To_Sectors(uint16_t seg_num)
 {
 	return seg_num * lfs_sb->seg_size * lfs_sb->b_size;
+}
+int LFS_SEG(int x){
+	return x + SUPERBLOCK_SEG_SIZE;
 }
 
 /*

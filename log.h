@@ -22,9 +22,9 @@ extern Flash flash;
 extern struct segment *tail_seg;
 extern int max_size_seg_cache;
 extern int periodic_cp_interval;
+extern int size_seg_summary;
+extern int SUPERBLOCK_SEG_SIZE;
 
-#define SUPERBLOCK_SEG_SIZE 1
-#define LFS_SEG(x) x+SUPERBLOCK_SEG_SIZE
 // #define LFS_SEG_TO_FLASH_SECTOR(lfs_seg_num, lfs_blk_in_seg, lfs_sector_in_blk) lfs_seg_num * lfs_blk_in_seg * lfs_sector_in_blk
 // #define LFS_ADDR_TO_FLASH_SECTOR(lfs_seg_num, lfs_blk_num, lfs_blk_in_seg, lfs_sector_in_blk) lfs_seg_num * lfs_blk_in_seg * lfs_sector_in_blk + lfs_blk_num * lfs_sector_in_blk
 
@@ -49,10 +49,17 @@ int Log_Read(struct addr *logAddress, int length, void* buffer);
 void updateInode(int inum, int block, struct addr *block_addr, int length);
 int write_tail_seg_to_flash();
 int Log_Write(int inum, int block, int length, void* buffer, struct addr *logAddress);
-int Log_Free(uint32_t logAddress, int length);
+int Log_Free(struct addr logAddress, int length);
+int free_single_segment(struct addr seg_addr, int offset);
+void init_seg_summary();
+void set_seg_summary(int block_num, uint16_t inum);
+void load_segment_usage_table();
+void update_segment_usage_table(int seg_num, int isUnvailble);
+void write_segment_usage_table();
 void update_sb();
 int logAddr_To_Sectors(struct addr *addr);
 int segNum_To_Sectors(uint16_t seg_num);
+int LFS_SEG(int x);
 int Seg_Cache_init(int N);
 void SC_trim();
 int SC_push();

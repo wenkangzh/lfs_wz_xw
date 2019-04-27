@@ -228,6 +228,9 @@ int File_Read_Helper(struct addr *blk_addr, int offset, int remaining_length, vo
  */
 int File_Free(int inum)
 {
+	struct inode *inode = malloc(sizeof(struct inode));
+	memset(inode, 0, sizeof(struct inode));
+	write_inode_in_ifile(inum, inode);
 	return 0;
 }
 
