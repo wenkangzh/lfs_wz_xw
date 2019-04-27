@@ -30,6 +30,10 @@ char *flash_file_name = NULL;
 int max_size_seg_cache;
 int periodic_cp_interval;
 
+int size_seg_summary;
+
+int SUPERBLOCK_SEG_SIZE;
+
 /*
  *----------------------------------------------------------------------
  *
@@ -53,11 +57,19 @@ void init()
 	// Compute size of a block in Byte
 	s_block_byte = lfs_sb->b_size * FLASH_SECTOR_SIZE;
 
+	// Compute number of blocks per segment that are reversed for segment summary table
+	size_seg_summary = lfs_sb->seg_size / (s_block_byte / sizeof(uint16_t));
+	if((lfs_sb->seg_size % (s_block_byte / sizeof(uint16_t)) != 0)) size_seg_summary ++;
+	printf("```````````````````size_seg_summary %d, %u, %d, %d\n", size_seg_summary, lfs_sb->seg_size, s_block_byte, (int)sizeof(uint16_t));
+	next_block_in_tail = size_seg_summary;
+
+	// Set Variable for size of superblock
+	SUPERBLOCK_SEG_SIZE = lfs_sb->sb_seg_num;
+
 	// TODO - need to restore information in checkpoint region in memory.
 	cp_region = malloc(sizeof(struct checkpoint_region));
 
 	// Log_Read(&(lfs_sb->checkpoint_addr), sizeof(struct checkpoint_region), cp_region);
-
 	u_int sector_offset = logAddr_To_Sectors(&(lfs_sb->checkpoint_addr));
 	// before calling Flash_Read, need to get buffer in Flash_Read enough space to read in.
 	u_int sector_n = sizeof(struct checkpoint_region) / FLASH_SECTOR_SIZE + (sizeof(struct checkpoint_region) % FLASH_SECTOR_SIZE == 0 ? 0 : 1);
@@ -76,6 +88,9 @@ void init()
 
 	// Init Segment Cache
 	Seg_Cache_init(max_size_seg_cache);
+
+	//	Init segment usage table
+	load_segment_usage_table();
 
 }
 
@@ -339,6 +354,8 @@ void update_cp_region(){
 	memcpy(cp_buffer, cp_region, sizeof(struct checkpoint_region));
 	// block=0 is an exception for the situation.
 	Log_Write(-1, 0, s_block_byte, cp_buffer, &(lfs_sb->checkpoint_addr));
+	// Update Segment Usage Table
+	write_segment_usage_table();
 	printf("~~~~~~~~~~~~~~~A NEW CHECKPOINTING REGION HAS BEEN ESTABLISHED!~~~~~~~~~~~~~~~\n");
 }
 
@@ -614,7 +631,6 @@ static int lfs_releasedir(const char* path, struct fuse_file_info *fi){return 0;
  */
 static void* lfs_init(struct fuse_conn_info *conn){
 	init();
-	printf("?????????? %d %lu\n", s_block_byte, sizeof(struct inode));
 	return 0;
 }
 

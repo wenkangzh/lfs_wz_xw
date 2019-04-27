@@ -33,5 +33,6 @@ int File_Free(int inum);
 int File_Read_Helper(struct addr *blk_addr, int offset, int remining_length, void *buffer);
 void Read_Inode_in_Ifile(int inum_of_file, struct inode *inode_inum);
 int Extend_Inode(int inum, int blk_num);
+void write_inode_in_ifile(int inum_of_file, struct inode *inode_inum);
 void Read_Block_in_Ifile(int block_ifile, void *buffer);
 #endif

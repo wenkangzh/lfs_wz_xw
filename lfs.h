@@ -27,6 +27,8 @@
 extern struct superblock *lfs_sb;
 extern struct checkpoint_region *cp_region;
 extern int s_block_byte;
+extern int next_block_in_tail;
+extern void *segUsageTable;
 
 #define LFS_IFILE_INUM 0
 #define LFS_ROOT_INUM 1
@@ -66,6 +68,7 @@ struct superblock {
 	uint16_t seg_num;						// # of segments
 	uint16_t sb_seg_num;					// # of segments for superblock usage
 	struct addr checkpoint_addr;			// address of the current(most recent) checkpoint region
+	struct addr seg_usage_table_addr;		// address of the segment usuage table address
 };
 
 struct dir {
