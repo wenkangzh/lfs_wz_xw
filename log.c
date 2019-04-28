@@ -102,6 +102,9 @@ int Log_Write(int inum, int block, int length, void* buffer, struct addr *logAdd
 		return -1;
 	}
 
+	// Clean Mechanism
+	cleaner_start();
+
 	// insert into tail_seg
 	void *next_block = tail_seg->blocks + s_block_byte * next_block_in_tail;
 	// printf("HEAD: %p NEXT: %p, skipped %u\n", tail_seg->blocks, next_block, (lfs_sb->b_size * FLASH_SECTOR_SIZE) * next_block_in_tail);
@@ -178,18 +181,36 @@ int write_tail_seg_to_flash()
 	// Update segment usage table
 	update_segment_usage_table(tail_seg->seg_num ,1);
 
+	// Update free segment counts
+	free_segment_counter --;
+
 	// Update segment cache
 	if(SC_push() == -1)
 		printf("FAILED TO INSERT THIS SEGMENT INTO SEGMENT CACHE!\n");
 	else
 		printf("***************THIS SEGMENT HAS BEEN INSERTED IN SEGMENT CACHE!****************\n");
 
-	tail_seg->seg_num++; // TODO get next segment number from most recent checkpoint region. 
+	findNextAvailbleSegment(); // TODO get next segment number from most recent checkpoint region.
 	memset(tail_seg->blocks, 0, lfs_sb->seg_size * lfs_sb->b_size * FLASH_SECTOR_SIZE);
 	// Initialize segment summary table
 	init_seg_summary();
  
 	return 0;
+}
+
+void findNextAvailbleSegment(){
+	int pointer = tail_seg->seg_num + 1;
+	uint8_t *ptr = segUsageTable;
+	while(pointer != tail_seg->seg_num){
+		ptr = ptr + pointer;
+		if(*ptr == 0){
+			tail_seg->seg_num = pointer;
+			printf("SCREENING SEGMENT %d FOUND FOR NEXT AVAILABLE SEGMENT! - ATTEMPTS: %u\n", pointer, *ptr);
+			return;
+		}
+		pointer ++;
+		pointer %= lfs_sb->seg_num;
+	}
 }
 
 /*
@@ -207,25 +228,98 @@ int write_tail_seg_to_flash()
  *
  *----------------------------------------------------------------------
  */
-int Log_Free(struct addr logAddress, int length)
+int Log_Free(struct addr *logAddress, int length)
 {
-	// 	Find involved segments [s0...sn]
-
-	//	Modify each segment s from [s0...sn], write into flash right after modification
-
+	// 	number of sectors needed to be freed
+	int n_sector = length / FLASH_SECTOR_SIZE;
+	if(length % FLASH_SECTOR_SIZE != 0) n_sector ++;
+	// 	Computer starting position
+	int start_FlashBlock = logAddress->seg_num * lfs_sb->seg_size * lfs_sb->b_size / 16;
+	//	Call Flash driver to erase
+	Flash_Erase(flash, start_FlashBlock, n_sector);
 	return 0;
 }
-int free_single_segment(struct addr seg_addr, int offset){
-	//	Read the segment
+void cleaner_start(){
+	if(free_segment_counter > 4) return;
+	printf("Clean Engine STARTS>>>>>>>>>>>>>>>>>>>>>>>>\n");
+	int pointer = tail_seg->seg_num;
+	while(free_segment_counter < 8){
+		if(needClean(pointer) == 0){
+			cleaner(pointer);
+			printf("<><><><> -SEGMENT %d HAS BEEN CLEANED | FREE SEGMENTS: %d/%d\n", pointer, free_segment_counter, (int)lfs_sb->seg_num - SUPERBLOCK_SEG_SIZE);
+		}
+		else printf("<><><><> -SEGMENT %d DONES'T NEED TO BE CLEANED\n", pointer);
+		pointer ++;
+		pointer %= lfs_sb->seg_num;
+	}
+}
+void cleaner(int seg_num){
+	// Read the segment
+	void *segment = malloc(s_segment_byte);
+	struct addr *seg_addr = malloc(sizeof(struct addr));
+	seg_addr->seg_num = seg_num;
+	seg_addr->block_num = 0;
+	Log_Read(seg_addr, s_segment_byte, segment);
+	// Mark the segment as dead
+	update_segment_usage_table(seg_addr->seg_num, 1);
+	// Free old segment in Flash
+	Log_Free(seg_addr, s_segment_byte);
+	//Disassemble blocks
+	for(int i = size_seg_summary; i < lfs_sb->seg_size; i ++){
+		int inum = get_block_inum(segment, i);
+		struct addr *blk_addr = malloc(sizeof(struct addr));
+		blk_addr->seg_num = seg_num;
+		blk_addr->block_num = i;
+		int blk_num = 0;
+		if((blk_num = isBlockAlive(inum, blk_addr)) >= 0){
+			Log_Write(inum, blk_num, s_block_byte, segment + i * s_block_byte, blk_addr);
+		}
+		free(blk_addr);
+	}
+	free_segment_counter ++;
+}
+// 0 - need clean; -1 - no need clean
+int needClean(int seg_num){
+	// Read the segment
+	void *segment = malloc(s_segment_byte);
+	struct addr *seg_addr = malloc(sizeof(struct addr));
+	seg_addr->seg_num = seg_num;
+	seg_addr->block_num = 0;
+	Log_Read(seg_addr, s_segment_byte, segment);
+	//Disassemble blocks
+	for(int i = size_seg_summary; i < lfs_sb->seg_size; i ++){
+		int inum = get_block_inum(segment, i);
+		struct addr *blk_addr = malloc(sizeof(struct addr));
+		blk_addr->seg_num = seg_num;
+		blk_addr->block_num = i;
+		int blk_num = 0;
+		if((blk_num = isBlockAlive(inum, blk_addr)) < 0){
+			return 0;
+		}
+		free(blk_addr);
+	}
+	return -1;
+}
+int isBlockAlive(int inum, struct addr *seg_addr){
+	struct inode *node = malloc(sizeof(struct inode));
+	Read_Inode_in_Ifile(inum, node);
+	// Check direct pointers
+	for(int i = 0; i < 4; i ++){
+		if(isTwoAddressSame(seg_addr, &(node->ptrs[i])))
+			return i;
+	}
+	// TODO check indirect pointers
 
-	//	Mark the segment as dead
+	// Return
+	return -1;
 
-	//	Erase data starts at offset
-
-	//	Insert it as a new segment
-
+}
+int isTwoAddressSame(struct addr *addr1, struct addr *addr2){
+	if(addr1->seg_num != addr2->seg_num) return -1;
+	if(addr1->block_num != addr2->block_num) return -1;
 	return 0;
 }
+
 /*
  *----------------------------------------------------------------------
  *
@@ -244,6 +338,10 @@ void init_seg_summary(){
 void set_seg_summary(int block_num, uint16_t inum){
 	memcpy(tail_seg->blocks + block_num * 16, &inum, sizeof(inum));
 }
+uint16_t get_block_inum(void* segment, int index){
+	uint16_t inum = (uint16_t)(segment + index * sizeof(uint16_t));
+	return inum;
+}
 
 /*
  *----------------------------------------------------------------------
@@ -254,14 +352,14 @@ void set_seg_summary(int block_num, uint16_t inum){
  */
 void load_segment_usage_table(){
 	// 	num_of_block_seg_usage_table represents number of blocks being reserved for segment usage table
-	int num_of_block_seg_usage_table = lfs_sb->seg_num * sizeof(uint8_t) / (lfs_sb->seg_size * FLASH_SECTOR_SIZE);
-	if(lfs_sb->seg_num * sizeof(uint8_t) % (lfs_sb->seg_num * FLASH_SECTOR_SIZE) != 0) num_of_block_seg_usage_table ++;
-	segUsageTable = malloc(num_of_block_seg_usage_table);
+	segUsageTable = malloc(lfs_sb->seg_num);
 	Log_Read(&(lfs_sb->seg_usage_table_addr), lfs_sb->seg_num, segUsageTable);
-	for(int i = 0; i < num_of_block_seg_usage_table; i ++){
+	for(int i = SUPERBLOCK_SEG_SIZE; i < lfs_sb->seg_num; i ++){
 		uint8_t *temp = segUsageTable + i;
+		printf("++++++%u\n", *temp);
 		if(*temp == 0) free_segment_counter ++;
 	}
+	printf("............................Available Free Segments: %d/%d\n", free_segment_counter, (int)(lfs_sb->seg_num) - SUPERBLOCK_SEG_SIZE);
 }
 void update_segment_usage_table(int seg_num, int isUnvailble){
 	memset(segUsageTable + seg_num, isUnvailble, sizeof(uint8_t));

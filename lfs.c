@@ -25,14 +25,18 @@ extern int max_size_seg_cache;
 struct superblock *lfs_sb = NULL;
 struct checkpoint_region *cp_region = NULL;
 int s_block_byte = 0;
+int s_segment_byte = 0;
 char *flash_file_name = NULL;
 
 int max_size_seg_cache;
 int periodic_cp_interval;
 
-int size_seg_summary;
+int size_seg_summary; // in blocks
 
 int SUPERBLOCK_SEG_SIZE;
+
+int start_clean;
+int stop_clean;
 
 /*
  *----------------------------------------------------------------------
@@ -54,8 +58,9 @@ void init()
 	flash = Flash_Open(flash_file_name, FLASH_ASYNC, blocks_n);
 	init_sb();
 
-	// Compute size of a block in Byte
+	// Compute size of a block in Byte and a segment in Byte
 	s_block_byte = lfs_sb->b_size * FLASH_SECTOR_SIZE;
+	s_segment_byte = lfs_sb->seg_num * s_block_byte;
 
 	// Compute number of blocks per segment that are reversed for segment summary table
 	size_seg_summary = lfs_sb->seg_size / (s_block_byte / sizeof(uint16_t));
@@ -921,8 +926,8 @@ int main(int argc, char *argv[])
 
     max_size_seg_cache = 4;
     periodic_cp_interval = 4;
-    int start = 4;
-    int stop = 8;
+    start_clean = 4;
+    stop_clean = 8;
 
     int opt = 0;
 	struct option long_options[] = {
@@ -942,10 +947,10 @@ int main(int argc, char *argv[])
 				periodic_cp_interval = (int) strtol(optarg, (char **)NULL, 10);
 				break;
 			case 'c':
-				start = (int) strtol(optarg, (char **)NULL, 10);
+				start_clean = (int) strtol(optarg, (char **)NULL, 10);
 				break;
 			case 'C':
-				stop = (int) strtol(optarg, (char **)NULL, 10);
+				stop_clean = (int) strtol(optarg, (char **)NULL, 10);
 				break;
 			default:
 				printf("usage: ... \n");
