@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
 	// write segment usage table
 	void *sut = sb_buffer + num_of_block_superblock * sizeof_block * FLASH_SECTOR_SIZE;
 	memset(sut, 0, sizeof(sut));
-	memset(sut, 1, sizeof(uint8_t));
+	memset(sut, 1, sizeof(uint8_t) * (sb_seg_size + 1));
 
 	// Write superblock to flash
 	Flash_Write(flash, 0, sizeof_block * sizeof_segment * sb_seg_size, sb_buffer);

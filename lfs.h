@@ -27,8 +27,11 @@
 extern struct superblock *lfs_sb;
 extern struct checkpoint_region *cp_region;
 extern int s_block_byte;
+extern int s_segment_byte;
 extern int next_block_in_tail;
 extern void *segUsageTable;
+extern int start_clean;
+extern int stop_clean;
 
 #define LFS_IFILE_INUM 0
 #define LFS_ROOT_INUM 1
