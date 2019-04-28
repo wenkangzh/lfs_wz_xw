@@ -1,15 +1,17 @@
 1.	Log_Read/Log_Write -> cache			- Wan DONE 04/24 (需要解决把read过的segment提到头部的操作）
-2.	Log_Free
+2.	Log_Free					- Wan DONE 04/26
 3.	File_Free					- Wan DONE 04/25
-4.	File_Read -> Indirect pointers
-5.	Directories -> Full functionality (Hierarchicy) - Zhou DONE 04/24
-6.	Periodically checkpointing (using given N)	- Wan DONE 04/24
-7.	Log Cleaner
-8.	Crash Recovery					- ALMOST DONE
-9.	Extra Credit
-10.	Segment Usage Table				- Wan DONE 04/25
-11.	Segment Summary Block				- Wan DONE 04/25
-12.	Symbolic/Hard Link	
+4.	File Removal					- Zhou DONE 04/26
+5.	Directory Removal
+6.	File_Read -> Indirect pointers
+7.	Directories -> Full functionality (Hierarchicy) - Zhou DONE 04/24
+8.	Periodically checkpointing (using given N)	- Wan DONE 04/24
+9.	Log Cleaner					- Wan DONE 04/26
+10.	Crash Recovery					- ALMOST DONE
+11.	Extra Credit
+12.	Segment Usage Table				- Wan DONE 04/25
+13.	Segment Summary Block				- Wan DONE 04/25
+14.	Symbolic/Hard Link				- Zhou DONE 04/26
 
 
 
