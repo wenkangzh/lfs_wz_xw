@@ -488,10 +488,56 @@ static int lfs_mkdir(const char* path, mode_t mode) {
  * Remove (delete) the given file, symbolic link, hard link, or special node—
  * but NOT a directory. Note that if you support hard links, unlink only
  * deletes the data when the last hard link is removed.
+ * 
+ * Trick: in order to change the content in directory file, we create a new directory file using File_Create with the same inum,
+ * then write the new data in the file.
  *
  *----------------------------------------------------------------------
  */
 static int lfs_unlink(const char* path) {
+	printf("===== lfs_unlink(%s) \n", path);
+	uint16_t inum = inum_lookup(path);
+	struct inode *inode = malloc(sizeof(struct inode));
+	Read_Inode_in_Ifile(inum, inode);
+
+	if(inode->type == LFS_FILE_TYPE_FILE && inode->n_links <= 1){
+		// need to actually free the file
+		File_Free(inum);
+	}
+
+	// then delete the parent directory entry here. 
+	char filename[LFS_FILE_NAME_MAX_LEN];
+	uint16_t parent_inum = find_last_dir(path, filename);
+	struct inode *parent_inode = malloc(sizeof(struct inode));
+	Read_Inode_in_Ifile(parent_inum, parent_inode);
+	void *old_parent_dir_buf = malloc(parent_inode->size);
+	File_Read(parent_inum, 0, parent_inode->size, old_parent_dir_buf);
+
+	void *new_parent_dir_buf = malloc(parent_inode->size - sizeof(struct dir_entry));
+	// copy the header
+	memcpy(new_parent_dir_buf,old_parent_dir_buf, sizeof(struct dir));
+	struct dir *new_ptr = new_parent_dir_buf;
+	new_ptr->size --;
+
+	struct dir *old_hdr = old_parent_dir_buf;
+	// now iterate through the old parent directory, then copy if needed
+	struct dir_entry *old_ptr;
+	int j = 0; // counter of new directory file
+	for(int i = 0; i < old_hdr->size; i++){
+		old_ptr = old_parent_dir_buf + sizeof(struct dir) + (sizeof(struct dir_entry) * i);
+		// if it is not the deleted file, then copy into the new directory file
+		if(strcmp(filename, old_ptr->name) != 0){
+			// find the new destination. 
+			new_ptr = new_parent_dir_buf + sizeof(struct dir) + (sizeof(struct dir_entry) * j);
+			memcpy(new_ptr, old_ptr, sizeof(struct dir_entry));
+			j++;
+		}
+	}
+
+	// after the loop, new_parent_dir_buf has the correct dir file content
+	File_Create(parent_inum, LFS_FILE_TYPE_DIR);
+	File_Write(parent_inum, 0, parent_inode->size - sizeof(struct dir_entry), new_parent_dir_buf);
+
 	return 0;
 }
 
@@ -502,7 +548,9 @@ static int lfs_unlink(const char* path) {
  *
  *----------------------------------------------------------------------
  */
-static int lfs_rmdir(const char* path) {return 0;}
+static int lfs_rmdir(const char* path) {
+	return 0;
+}
 
 /*
  *----------------------------------------------------------------------
