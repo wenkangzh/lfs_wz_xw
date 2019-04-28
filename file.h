@@ -17,6 +17,7 @@
 #define LFS_FILE_TYPE_IFILE 0
 #define LFS_FILE_TYPE_FILE 1
 #define LFS_FILE_TYPE_DIR 2
+#define LFS_FILE_TYPE_SYMLINK 3
 
 extern struct superblock *lfs_sb;
 extern struct checkpoint_region *cp_region;

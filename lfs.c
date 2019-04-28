@@ -194,6 +194,7 @@ void print_inode(struct inode *inode)
 	printf("\t----- inode -----\n");
 	printf("\t inum: %u\n", inode->inum);
 	printf("\t type: %u\n", inode->type);
+	printf("\t links: %u\n", inode->n_links);
 	printf("\t size: %u\n", inode->size);
 	printf("\t addr0: %u %u\n", inode->ptrs[0].seg_num, inode->ptrs[0].block_num);
 	printf("\t addr1: %u %u\n", inode->ptrs[1].seg_num, inode->ptrs[1].block_num);
@@ -397,11 +398,15 @@ static int lfs_getattr(const char* path, struct stat* stbuf){
     		printf("\t (This is a dir)\n");
     		mode = S_IFDIR | 0777;
     	}
+    	else if(inode->type == LFS_FILE_TYPE_SYMLINK){
+    		printf("\t (This is a symbolic link)\n");
+    		mode = S_IFLNK | 0777;
+    	}
     	else{
-    		printf("不对啦😱\n");
+    		printf("不对啦😱 %u\n", inode->type);
     	}
     	stbuf->st_mode = mode;
-    	stbuf->st_nlink = 1; // TODO this is hard coded for all files in root directory
+    	stbuf->st_nlink = inode->n_links; 
     	stbuf->st_ino = inode->inum;
     }
 
@@ -417,10 +422,24 @@ static int lfs_getattr(const char* path, struct stat* stbuf){
  *----------------------------------------------------------------------
  *
  * lfs_readlink (FUSE FUNCTION IMPLEMENTATION)
+ * TODO : Notice only works in root. 
  *
  *----------------------------------------------------------------------
  */
-static int lfs_readlink(const char* path, char* buf, size_t size) {return 0;}
+static int lfs_readlink(const char* path, char* buf, size_t size) {
+	printf("===== lfs_readlink(%s, %lu)\n", path, size);
+	uint16_t link_inum = inum_lookup(path);
+	struct inode *link_inode = malloc(sizeof(struct inode));
+	Read_Inode_in_Ifile(link_inum, link_inode);
+	void *link_buffer = malloc(link_inode->size);
+	File_Read(link_inum, 0, link_inode->size, link_buffer);
+	printf("\t BUFFER: %s\n",(char *) link_buffer);
+	uint16_t real_file_inum = inum_lookup((char *)link_buffer);
+	printf("\t REAL FILE: %u\n", real_file_inum);
+	// File_Read(real_file_inum, 0, size, buf);
+	strcpy(buf, link_buffer);
+	return 0;
+}
 
 /*
  *----------------------------------------------------------------------
@@ -697,7 +716,45 @@ static int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi){
  *
  *----------------------------------------------------------------------
  */
-static int lfs_link(const char* from, const char* to){return 0;}
+static int lfs_link(const char* from, const char* to){
+	printf("===== lfs_link(%s, %s)\n", from, to);
+	char new_file_name[LFS_FILE_NAME_MAX_LEN];
+	memset(new_file_name, 0, LFS_FILE_NAME_MAX_LEN);
+	uint16_t file_inum = inum_lookup(from);
+	uint16_t new_parent_inum = find_last_dir(to, new_file_name);
+	printf("===== %s %u %u\n", new_file_name, file_inum, new_parent_inum);
+
+	// 1. Add an entry in the desination directory
+	struct inode *new_parent_inode = malloc(sizeof(struct inode));
+	Read_Inode_in_Ifile(new_parent_inum, new_parent_inode);
+	// buffer to hold dir file
+	void *new_parent_dir_buffer = malloc(new_parent_inode->size + sizeof(struct dir_entry));
+	File_Read(new_parent_inum, 0, new_parent_inode->size, new_parent_dir_buffer);
+	// get the parent directory header
+	struct dir *dir_hdr = new_parent_dir_buffer;
+	dir_hdr->size ++;
+	// the new entry
+	struct dir_entry *new_entry = new_parent_dir_buffer + new_parent_inode->size;
+	strcpy(new_entry->name, new_file_name);
+	new_entry->inum = file_inum;
+	File_Write(new_parent_inum, 0, new_parent_inode->size + sizeof(struct dir_entry), new_parent_dir_buffer);
+
+	// 2. update the inode, increment the number of hard links. 
+
+	struct inode *file_inode = malloc(sizeof(struct inode));
+	Read_Inode_in_Ifile(file_inum, file_inode);
+	file_inode->n_links ++;
+	write_inode_in_ifile(file_inum, file_inode);
+
+
+	// test for the write function
+	struct inode *temp = malloc(sizeof(struct inode));
+	Read_Inode_in_Ifile(file_inum, temp);
+	print_inode(temp);
+	printf("\t===== lfs_link() returns\n");
+
+	return 0;
+}
 
 /*
  *----------------------------------------------------------------------
@@ -706,7 +763,20 @@ static int lfs_link(const char* from, const char* to){return 0;}
  *
  *----------------------------------------------------------------------
  */
-static int lfs_symlink(const char* to, const char* from){return 0;}
+static int lfs_symlink(const char* to, const char* from){
+	printf("===== lfs_symlink(%s, %s)\n", to, from);
+	char link_filename[LFS_FILE_NAME_MAX_LEN];
+	memset(link_filename, 0, LFS_FILE_NAME_MAX_LEN);
+	// "to" is the linked file, when evaluate "from", it lead to "to"
+	uint16_t link_parent_inum = find_last_dir(from, link_filename);
+	// this will create a directory entry in the function, and a new inum.
+	uint16_t link_inum = assign_inum(link_filename, link_parent_inum); 
+	// this will create the inode itself with a file type to be symlink
+	File_Create(link_inum, LFS_FILE_TYPE_SYMLINK);
+	// the only content in the symlink file is the path to actual file.
+	File_Write(link_inum, 0, strlen(to), (void *)to);
+	return 0;
+}
 
 /*
  *----------------------------------------------------------------------

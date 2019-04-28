@@ -55,6 +55,7 @@ int File_Create(int inum, int type)
 	// Implement inode of inum
 	inode_inum->inum = inum;
 	inode_inum->type = type;
+	inode_inum->n_links = 1;
 	inode_inum->size = 0;
 	inode_inum->ptrs[0].seg_num = LFS_UNUSED_ADDR;
 	inode_inum->ptrs[1].seg_num = LFS_UNUSED_ADDR;
