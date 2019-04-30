@@ -393,24 +393,22 @@ static int lfs_getattr(const char* path, struct stat* stbuf){
     	}
     	struct inode *inode = malloc(sizeof(struct inode));
     	Read_Inode_in_Ifile(inum, inode);
-    	mode_t mode = S_IFREG | 0777;
     	if(inode->type == LFS_FILE_TYPE_FILE){
     		printf("\t (This is a file)\n");
-    		mode = S_IFREG | 0777;
     		stbuf->st_size = inode->size;
     	}
     	else if(inode->type == LFS_FILE_TYPE_DIR){
     		printf("\t (This is a dir)\n");
-    		mode = S_IFDIR | 0777;
     	}
     	else if(inode->type == LFS_FILE_TYPE_SYMLINK){
     		printf("\t (This is a symbolic link)\n");
-    		mode = S_IFLNK | 0777;
+    		stbuf->st_size = inode->size;
     	}
     	else{
     		printf("不对啦😱 %u\n", inode->type);
     	}
-    	stbuf->st_mode = mode;
+    	stbuf->st_mode = inode->mode;
+    	stbuf->st_mtime = inode->lst_mdf;
     	stbuf->st_nlink = inode->n_links; 
     	stbuf->st_ino = inode->inum;
     }
@@ -549,6 +547,54 @@ static int lfs_unlink(const char* path) {
  *----------------------------------------------------------------------
  */
 static int lfs_rmdir(const char* path) {
+	// ENOTEMPTY
+	printf("===== lfs_rmdir(%s)\n", path);
+
+	// first check if the given directory is empty or not. 
+	uint16_t inum = inum_lookup(path);
+	struct inode *inode = malloc(sizeof(struct inode));
+	Read_Inode_in_Ifile(inum, inode);
+	void *dir_buf = malloc(inode->size);
+	File_Read(inum, 0, inode->size, dir_buf);
+	struct dir *hdr = dir_buf;
+	printf("\t QQQQQ %s %d\n", hdr->name, hdr->size);
+	if(hdr->size > 2)
+		return -ENOTEMPTY;
+	// here we free the directory file
+	File_Free(inum);
+	// now remove the entry from its parent directory
+	// get the parent directory file
+	char dirname[LFS_FILE_NAME_MAX_LEN];
+	memset(dirname, 0, LFS_FILE_NAME_MAX_LEN);
+	uint16_t parent_inum = find_last_dir(path, dirname);
+	struct inode *parent_inode = malloc(sizeof(struct inode));
+	Read_Inode_in_Ifile(parent_inum, parent_inode);
+	void *old_parent_dir_buf = malloc(parent_inode->size);
+	File_Read(parent_inum, 0, parent_inode->size, old_parent_dir_buf);
+
+	// now we create a new buffer for the new parent directory file
+	void *new_parent_dir_buf = malloc(parent_inode->size - sizeof(struct dir_entry));
+	// copy the header, decrement the size by 1
+	memcpy(new_parent_dir_buf, old_parent_dir_buf, sizeof(struct dir));
+	struct dir *new_ptr = new_parent_dir_buf;
+	new_ptr->size --;
+	struct dir *old_hdr = old_parent_dir_buf;
+	// now iterate through the old parent directory, copy the entry if it's not the removed one
+	struct dir_entry *old_ptr;
+	int j = 0; 	// counter of new directory file
+	for(int i = 0; i < old_hdr->size; i++){
+		old_ptr = old_parent_dir_buf + sizeof(struct dir) + (sizeof(struct dir_entry) * i);
+		// if it's not the deleted file, 
+		if(strcmp(dirname, old_ptr->name) != 0){
+			// find the new destination
+			new_ptr = new_parent_dir_buf + sizeof(struct dir) + (sizeof(struct dir_entry) * j);
+			memcpy(new_ptr, old_ptr, sizeof(struct dir_entry));
+			j++;
+		}
+	}
+	// after the loop, need to create and write new directory file with the same inum
+	File_Create(parent_inum, LFS_FILE_TYPE_DIR);
+	File_Write(parent_inum, 0, parent_inode->size - sizeof(struct dir_entry), new_parent_dir_buf);
 	return 0;
 }
 
@@ -908,6 +954,12 @@ static int lfs_rename(const char* from, const char* to){
  *----------------------------------------------------------------------
  */
 static int lfs_chmod(const char* path, mode_t mode){
+	printf("===== lfs_chmod(%s)\n", path);
+	uint16_t inum = inum_lookup(path);
+	struct inode *inode = malloc(sizeof(struct inode));
+	Read_Inode_in_Ifile(inum, inode);
+	inode->mode = mode;
+	write_inode_in_ifile(inum, inode);
 	return 0;
 }
 

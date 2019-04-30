@@ -55,6 +55,13 @@ int File_Create(int inum, int type)
 	// Implement inode of inum
 	inode_inum->inum = inum;
 	inode_inum->type = type;
+	if(type == LFS_FILE_TYPE_FILE)
+		inode_inum->mode = S_IFREG | 0777;
+	if(type == LFS_FILE_TYPE_DIR)
+		inode_inum->mode = S_IFDIR | 0777;
+	if(type == LFS_FILE_TYPE_SYMLINK)
+		inode_inum->mode = S_IFLNK | 0777;
+	inode_inum->lst_mdf = time(NULL);
 	inode_inum->n_links = 1;
 	inode_inum->size = 0;
 	inode_inum->ptrs[0].seg_num = LFS_UNUSED_ADDR;

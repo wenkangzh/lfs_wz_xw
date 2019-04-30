@@ -152,6 +152,7 @@ void updateInode(int inum, int block, struct addr *block_addr, int length)
 	i_inode->ptrs[block].seg_num = block_addr->seg_num;
 	i_inode->ptrs[block].block_num = block_addr->block_num;
 	i_inode->size += length; // length > 0 if the size increase; length < 0 if the size decrease;
+	i_inode->lst_mdf = time(NULL);
 	// writing the file block of ifile in the log.
 	//print_inode(i_inode);
 	Log_Write(LFS_IFILE_INUM, blk_num, s_block_byte, buffer, &(cp_region->ifile_inode.ptrs[blk_num]));
