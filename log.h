@@ -46,9 +46,10 @@ struct LinkedList{
 };
 
 int Log_Read(struct addr *logAddress, int length, void* buffer);
-void updateInode(int inum, int block, struct addr *block_addr, int length);
 int write_tail_seg_to_flash();
 int Log_Write(int inum, int block, int length, void* buffer, struct addr *logAddress);
+void updateInode(int inum, int block, struct addr *block_addr, int length);
+void getAddr(int inum, int i, struct addr *address);
 void cleaner_start();
 void cleaner(int seg_num);
 int needClean(int seg_num);

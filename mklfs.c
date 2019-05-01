@@ -112,6 +112,8 @@ int main(int argc, char *argv[])
 	root_inode->ptrs[2].block_num = LFS_UNUSED_ADDR;
 	root_inode->ptrs[3].seg_num = LFS_UNUSED_ADDR;
 	root_inode->ptrs[3].block_num = LFS_UNUSED_ADDR;
+	root_inode->indirect.seg_num = LFS_UNUSED_ADDR;
+	root_inode->indirect.block_num = LFS_UNUSED_ADDR;
 	memcpy(ifile_buffer + sizeof(struct inode), root_inode, sizeof(struct inode));
 	// now ifile_buffer has one inode, which is inode for root directory file. ⬇
 
@@ -160,6 +162,8 @@ int main(int argc, char *argv[])
 	init_cp->ifile_inode.ptrs[2].block_num = LFS_UNUSED_ADDR;
 	init_cp->ifile_inode.ptrs[3].seg_num = LFS_UNUSED_ADDR;			// 1
 	init_cp->ifile_inode.ptrs[3].block_num = LFS_UNUSED_ADDR;
+	init_cp->ifile_inode.indirect.seg_num = LFS_UNUSED_ADDR;
+	init_cp->ifile_inode.indirect.block_num = LFS_UNUSED_ADDR;
 
 	// Write ifile, root directory, initial checkpoint region to LFS
 	void *total_buffer = malloc(sizeof_block * FLASH_SECTOR_SIZE * 3); 	// 3 blocks spaces. 
