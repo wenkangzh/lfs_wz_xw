@@ -105,7 +105,8 @@ int File_Write(int inum, int offset, int length, void *buffer)
 	Read_Inode_in_Ifile(inum, inode_inum);
 	// write block of the file
 	int data_written = 0;
-	int remaining_length = length - data_written;
+	int remaining_length = 0;
+	remaining_length = length - data_written;
 	int i_blk = offset / s_block_byte; //Write starts at 'i_blk'th block
 	int isNewBlock = 0; // This value indicates whether or not the data is written to a new block; 1 means newly created block
 	while(remaining_length != 0){

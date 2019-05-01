@@ -7,6 +7,7 @@ import optparse
 import unittest
 import stat
 import time
+from pip._vendor.requests.api import options
 
 # NOTES
 # These are the phase 1 LFS test cases. You must specify the flash device and mount point as
@@ -129,79 +130,79 @@ class TestBasic(TestBase):
 #         fd.close()
 #         self.assertEqual(contents, "HELLO")
 #   
-    def test_06_read_across_eof(self):
-        global options
-        path = os.path.join(options.mount, "foo")
-        fd = open(path, "w")
-        fd.write("hello")
-        fd.close()
-        fd = open(path, "r")
-        contents = fd.read(10)
-        fd.close()
-        self.assertEqual(contents, "hello")
-   
-    def test_07_read_across_eof(self):
-        global options
-        path = os.path.join(options.mount, "foo")
-        fd = open(path, "w")
-        fd.write("hello")
-        fd.close()
-        fd = open(path, "r")
-        contents = fd.read(10)
-        fd.close()
-        self.assertEqual(contents, "hello")
-   
-   
-    def test_08_large_file(self):
-        global options
-        path = os.path.join(options.mount, "foo")
-        fd = open(path, "w")
-        expected = "a" * 3 * 1024
-        fd.write(expected)
-        fd.close()
-        fd = open(path, "r")
-        contents = fd.read()
-        fd.close()
-        self.assertEqual(contents, expected)
-   
-    def test_09_binary(self):
-        global options
-        path = os.path.join(options.mount, "foo")
-        fd = open(path, "w")
-        fd.write("\xaa\xbb\xcc")
-        fd.close()
-        fd = open(path, "r")
-        contents = fd.read(10)
-        fd.close()
-        self.assertEqual(contents, "\xaa\xbb\xcc")
-   
-    def test_10_not_found(self):
-        global options
-        path = os.path.join(options.mount, "foo")
-        fd = open(path, "w")
-        fd.write("hello")
-        fd.close()
-        path = os.path.join(options.mount, "bar")
-        self.assertRaises(Exception, open, path, "r")
-    
-    def test_11_stat_type(self):
-        global options
-        path = os.path.join(options.mount, "foo")
-        fd = open(path, "w")
-        fd.write("hello")
-        fd.close()
-        s = os.stat(path)
-        self.assertTrue(stat.S_ISREG(s.st_mode))
-   
-   
-    def test_12_stat_size(self):
-        global options
-        path = os.path.join(options.mount, "foo")
-        fd = open(path, "w")
-        fd.write("hello")
-        fd.close()
-        s = os.stat(path)
-        self.assertEqual(s.st_size, 5)
+#     def test_06_read_across_eof(self):
+#         global options
+#         path = os.path.join(options.mount, "foo")
+#         fd = open(path, "w")
+#         fd.write("hello")
+#         fd.close()
+#         fd = open(path, "r")
+#         contents = fd.read(10)
+#         fd.close()
+#         self.assertEqual(contents, "hello")
+#    
+#     def test_07_read_across_eof(self):
+#         global options
+#         path = os.path.join(options.mount, "foo")
+#         fd = open(path, "w")
+#         fd.write("hello")
+#         fd.close()
+#         fd = open(path, "r")
+#         contents = fd.read(10)
+#         fd.close()
+#         self.assertEqual(contents, "hello")
+#    
+#    
+#     def test_08_large_file(self):
+#         global options
+#         path = os.path.join(options.mount, "foo")
+#         fd = open(path, "w")
+#         expected = "a" * 3 * 1024
+#         fd.write(expected)
+#         fd.close()
+#         fd = open(path, "r")
+#         contents = fd.read()
+#         fd.close()
+#         self.assertEqual(contents, expected)
+#    
+#     def test_09_binary(self):
+#         global options
+#         path = os.path.join(options.mount, "foo")
+#         fd = open(path, "w")
+#         fd.write("\xaa\xbb\xcc")
+#         fd.close()
+#         fd = open(path, "r")
+#         contents = fd.read(10)
+#         fd.close()
+#         self.assertEqual(contents, "\xaa\xbb\xcc")
+#    
+#     def test_10_not_found(self):
+#         global options
+#         path = os.path.join(options.mount, "foo")
+#         fd = open(path, "w")
+#         fd.write("hello")
+#         fd.close()
+#         path = os.path.join(options.mount, "bar")
+#         self.assertRaises(Exception, open, path, "r")
+#     
+#     def test_11_stat_type(self):
+#         global options
+#         path = os.path.join(options.mount, "foo")
+#         fd = open(path, "w")
+#         fd.write("hello")
+#         fd.close()
+#         s = os.stat(path)
+#         self.assertTrue(stat.S_ISREG(s.st_mode))
+#    
+#    
+#     def test_12_stat_size(self):
+#         global options
+#         path = os.path.join(options.mount, "foo")
+#         fd = open(path, "w")
+#         fd.write("hello")
+#         fd.close()
+#         s = os.stat(path)
+#         self.assertEqual(s.st_size, 5)
 #   
 #   
 #     def test_13_stat_times(self):
@@ -274,6 +275,11 @@ class TestBasic(TestBase):
 #         fd.close()
 #         self.assertEqual(contents1, "hello")
 #         self.assertEqual(contents2, "goodbye")
+
+      def test_18_comprehensive_files(self):
+          global options
+          path = [20]
+          
 
 
 def main(args):
