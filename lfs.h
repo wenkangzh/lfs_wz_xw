@@ -53,8 +53,8 @@ struct inode{
 	uint16_t n_links;						// # of hard links
 	int size;								// size of the file.
 	struct addr ptrs[4];
-	char padding[18];
-	// TODO In phase 2, implement a indirect pointer to a block of direct pointers
+	struct addr indirect;					// Pointer to indirect block
+	char padding[14];
 };
 
 struct checkpoint_region{
