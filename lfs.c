@@ -54,6 +54,7 @@ int stop_clean;
  */
 void init()
 {
+	printf(" ----- ----- ----- %lu\n", sizeof(struct inode));
 	u_int *blocks_n = malloc(sizeof(u_int));
 	flash = Flash_Open(flash_file_name, FLASH_ASYNC, blocks_n);
 	init_sb();
