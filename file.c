@@ -72,6 +72,8 @@ int File_Create(int inum, int type)
 	inode_inum->ptrs[1].block_num = LFS_UNUSED_ADDR;
 	inode_inum->ptrs[2].block_num = LFS_UNUSED_ADDR;
 	inode_inum->ptrs[3].block_num = LFS_UNUSED_ADDR;
+	inode_inum->indirect.seg_num = LFS_UNUSED_ADDR;
+	inode_inum->indirect.block_num = LFS_UNUSED_ADDR;
 	// Write the modified block of ifile through Log_Write
 	void *ifile_blk = malloc(s_block_byte);
 	Read_Block_in_Ifile(blk_in_ifile ,ifile_blk);
@@ -117,7 +119,9 @@ int File_Write(int inum, int offset, int length, void *buffer)
 	int i_blk = offset / s_block_byte; //Write starts at 'i_blk'th block
 	int isNewBlock = 0; // This value indicates whether or not the data is written to a new block; 1 means newly created block
 	while(remaining_length != 0){
-		if(inode_inum->ptrs[i_blk].seg_num == LFS_UNUSED_ADDR) {
+		struct addr *address = malloc(sizeof(struct addr));
+		getAddr(inum, i_blk, address);
+		if(address->seg_num == LFS_UNUSED_ADDR || (i_blk == 4 && address->seg_num == LFS_UNUSED_ADDR)) {
 			
 			if(Extend_Inode(inum, i_blk) == -1){
 				printf("File Write Operation Termination: Number of File Limitation Reached!)\n");
@@ -128,10 +132,10 @@ int File_Write(int inum, int offset, int length, void *buffer)
 		}
 		data_written += File_Write_Helper(	inode_inum, 
 											i_blk, 
-											&(inode_inum->ptrs[i_blk]),
 											(offset + data_written) % s_block_byte, 
 											remaining_length, 
 											buffer + data_written, isNewBlock	);
+		printf("########################### %d HAS BEEN WRITTEN TO FILE %d BLOCK %d\n", data_written, inum, i_blk);
 		remaining_length = length - data_written;
 		i_blk ++;
 		isNewBlock = 0;
@@ -144,10 +148,11 @@ int File_Write(int inum, int offset, int length, void *buffer)
 }
 
 // Read data from given offset to the end of the block
-int File_Write_Helper(struct inode *inode_inum, int block, struct addr *blk_addr, int offset, int remaining_length, void *buffer, int isNewBlock){
+int File_Write_Helper(struct inode *inode_inum, int block, int offset, int remaining_length, void *buffer, int isNewBlock){
 	// Get target block that being replaced
 	void *block_data = malloc(s_block_byte);
-	File_Read(inode_inum->inum, block * s_block_byte, s_block_byte, block_data);
+	if(inode_inum->indirect.seg_num != LFS_UNUSED_ADDR)
+		File_Read(inode_inum->inum, block * s_block_byte, s_block_byte, block_data);
 	// Modify the target block
 	int write_length = s_block_byte - offset; // Calculate how many bytes we need read
 	if(write_length > remaining_length) write_length = remaining_length;
@@ -162,7 +167,10 @@ int File_Write_Helper(struct inode *inode_inum, int block, struct addr *blk_addr
 		change_of_size = write_length;
 	}
 	// Write new data of block
-	Log_Write(inode_inum->inum, block, change_of_size, block_data, blk_addr);
+	struct addr * address = malloc(sizeof(struct addr));
+	printf("########################### CHANGE OF SIZE %d; WRITE LENGTH: %d; NEW BLOCK: %d; INODE SIZE: %d\n", change_of_size, write_length, isNewBlock, inode_inum->size);
+	Log_Write(inode_inum->inum, block, change_of_size, block_data, address);
+	free(address);
 	return write_length;
 }
 
@@ -203,12 +211,15 @@ int File_Read(int inum, int offset, int length, void *buffer)
 	int remaining_length = length - data_read;
 	int i_blk = offset / s_block_byte;
 	while(remaining_length != 0){
-		data_read += File_Read_Helper(	&(inode_inum->ptrs[i_blk]), 
+		struct addr *blk_addr = malloc(sizeof(struct addr));
+		getAddr(inum, i_blk, blk_addr);
+		data_read += File_Read_Helper(	blk_addr,
 										(offset + data_read) % s_block_byte, 
 										remaining_length, 
 										buffer + data_read	);
 		remaining_length = length - data_read;
 		i_blk ++;
+		free(blk_addr);
 	}
 	return 0;
 }
@@ -258,6 +269,7 @@ int File_Free(int inum)
  *----------------------------------------------------------------------
  */
 void Read_Inode_in_Ifile(int inum_of_file, struct inode *inode_inum){
+	printf("$$$$$$$$$$READING INODE %d\n", inum_of_file);
 	void  *ifile_blk = malloc(s_block_byte);
 	int blk_in_ifile = (inum_of_file * sizeof(struct inode)) / s_block_byte;
 	struct addr *ifile_addr = malloc(sizeof(struct addr));
@@ -292,10 +304,10 @@ void Read_Block_in_Ifile(int block_ifile, void *buffer){
 
 // Create a block for ifile
 int Extend_Inode(int inum, int blk_num){
-	if(blk_num > 3){
-		printf("ifile extension: Limitation of ifile is reached! (Current ifile has 4 blocks)\n");
-		return -1;
-	}
+//	if(blk_num > 3){
+//		printf("ifile extension: Limitation of ifile is reached! (Current ifile has 4 blocks)\n");
+//		return -1;
+//	}
 	void *new_block = malloc(s_block_byte);
 	struct addr *new_block_address = malloc(sizeof(struct addr));
 	Log_Write(inum, blk_num, 0, new_block, new_block_address);

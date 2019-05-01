@@ -28,7 +28,7 @@ struct inode;
 
 int File_Create(int inum, int type);
 int File_Write(int inum, int offset, int length, void *buffer);
-int File_Write_Helper(struct inode *inode_inum, int block, struct addr *blk_addr, int offset, int remaining_length, void *buffer, int isNewBlock);
+int File_Write_Helper(struct inode *inode_inum, int block, int offset, int remaining_length, void *buffer, int isNewBlock);
 int File_Read(int inum, int offset, int length, void *buffer);
 int File_Free(int inum);
 int File_Read_Helper(struct addr *blk_addr, int offset, int remining_length, void *buffer);

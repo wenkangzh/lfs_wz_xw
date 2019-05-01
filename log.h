@@ -24,6 +24,7 @@ extern int max_size_seg_cache;
 extern int periodic_cp_interval;
 extern int size_seg_summary;
 extern int SUPERBLOCK_SEG_SIZE;
+extern int cleaner_pointer;
 
 // #define LFS_SEG_TO_FLASH_SECTOR(lfs_seg_num, lfs_blk_in_seg, lfs_sector_in_blk) lfs_seg_num * lfs_blk_in_seg * lfs_sector_in_blk
 // #define LFS_ADDR_TO_FLASH_SECTOR(lfs_seg_num, lfs_blk_num, lfs_blk_in_seg, lfs_sector_in_blk) lfs_seg_num * lfs_blk_in_seg * lfs_sector_in_blk + lfs_blk_num * lfs_sector_in_blk
@@ -50,6 +51,7 @@ int write_tail_seg_to_flash();
 int Log_Write(int inum, int block, int length, void* buffer, struct addr *logAddress);
 void updateInode(int inum, int block, struct addr *block_addr, int length);
 void getAddr(int inum, int i, struct addr *address);
+void createIndirectBlock(int inum, struct addr *address);
 void cleaner_start();
 void cleaner(int seg_num);
 int needClean(int seg_num);

@@ -35,6 +35,7 @@ extern int stop_clean;
 
 #define LFS_IFILE_INUM 0
 #define LFS_ROOT_INUM 1
+#define LFS_CP_REGION_INUM 2
 
 #define LFS_UNUSED_ADDR 0xFFFF
 

@@ -2,8 +2,8 @@
 2.	Log_Free					- Wan DONE 04/26
 3.	File_Free					- Wan DONE 04/25
 4.	File Removal					- Zhou DONE 04/26
-5.	Directory Removal
-6.	File_Read -> Indirect pointers
+5.	Directory Removal				- Zhou DONE 04/26
+6.	File_Read -> Indirect pointers			- Wan DONE 04/26
 7.	Directories -> Full functionality (Hierarchicy) - Zhou DONE 04/24
 8.	Periodically checkpointing (using given N)	- Wan DONE 04/24
 9.	Log Cleaner					- Wan DONE 04/26

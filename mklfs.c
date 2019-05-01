@@ -73,6 +73,8 @@ int main(int argc, char *argv[])
 	//	sb_seg_size represents number of segment super block overall used
 	int sb_seg_size = (num_of_block_superblock + num_of_block_seg_usage_table) / (sizeof_segment);
 	if((num_of_block_superblock + num_of_block_seg_usage_table) % (sizeof_segment) != 0) sb_seg_size ++;
+	int size_seg_summary = sizeof_segment / (sizeof_block * FLASH_SECTOR_SIZE / sizeof(uint16_t));
+	size_seg_summary += (sizeof_segment % (sizeof_block * FLASH_SECTOR_SIZE / sizeof(uint16_t)) == 0) ? 0 : 1;
 
 	void *sb_buffer = malloc(sizeof_block * sizeof_segment * sb_seg_size * FLASH_SECTOR_SIZE);
 	struct superblock *superblock = sb_buffer;
@@ -81,7 +83,7 @@ int main(int argc, char *argv[])
 	superblock->seg_num = sizeof_flash;
 	superblock->sb_seg_num = sb_seg_size;
 	superblock->checkpoint_addr.seg_num = sb_seg_size;
-	superblock->checkpoint_addr.block_num = 2;		// checkpoint region is in the third block
+	superblock->checkpoint_addr.block_num = 2 + + size_seg_summary;		// checkpoint region is in the third block
 	superblock->seg_usage_table_addr.seg_num = num_of_block_superblock / sizeof_segment + (num_of_block_superblock % sizeof_segment == 0 ? 1 : 0);
 	superblock->seg_usage_table_addr.block_num = num_of_block_superblock % sizeof_segment;
 
@@ -105,7 +107,7 @@ int main(int argc, char *argv[])
 	root_inode->type = LFS_FILE_TYPE_DIR;
 	root_inode->size = sizeof(struct dir_entry) * 3 + sizeof(struct dir);		// initially there are ".", "..", ".ifile" in the root
 	root_inode->ptrs[0].seg_num = sb_seg_size;
-	root_inode->ptrs[0].block_num = 1;
+	root_inode->ptrs[0].block_num = 1 + size_seg_summary;
 	root_inode->ptrs[1].seg_num = LFS_UNUSED_ADDR;
 	root_inode->ptrs[1].block_num = LFS_UNUSED_ADDR;
 	root_inode->ptrs[2].seg_num = LFS_UNUSED_ADDR;
@@ -149,13 +151,13 @@ int main(int argc, char *argv[])
 	init_cp->timestamp = time(NULL);
 	init_cp->last_seg_addr.seg_num = sb_seg_size;	// 也就是1
 	init_cp->last_seg_addr.block_num = 0;
-	init_cp->next_inum = 2;							// initially the next available inum is 2, after root directory
+	init_cp->next_inum = 3;							// initially the next available inum is 3, after root directory
 	init_cp->segment_usage_table = 0;				// TODO dummy
 	init_cp->ifile_inode.inum = LFS_IFILE_INUM;
 	init_cp->ifile_inode.type = LFS_FILE_TYPE_IFILE;
 	init_cp->ifile_inode.size = sizeof(struct inode) * 2;	// TODO need change in phase 2
 	init_cp->ifile_inode.ptrs[0].seg_num = sb_seg_size;			// 1
-	init_cp->ifile_inode.ptrs[0].block_num = 0;
+	init_cp->ifile_inode.ptrs[0].block_num = 0 + size_seg_summary;
 	init_cp->ifile_inode.ptrs[1].seg_num = LFS_UNUSED_ADDR;			// 1
 	init_cp->ifile_inode.ptrs[1].block_num = LFS_UNUSED_ADDR;
 	init_cp->ifile_inode.ptrs[2].seg_num = LFS_UNUSED_ADDR;			// 1
@@ -165,15 +167,24 @@ int main(int argc, char *argv[])
 	init_cp->ifile_inode.indirect.seg_num = LFS_UNUSED_ADDR;
 	init_cp->ifile_inode.indirect.block_num = LFS_UNUSED_ADDR;
 
+	// Segment Summary Table
+	void *summary_buffer = malloc(size_seg_summary * sizeof_block * FLASH_SECTOR_SIZE);
+	memset(summary_buffer, 0xffff, size_seg_summary * sizeof_block * FLASH_SECTOR_SIZE);
+	memset(summary_buffer, 0, sizeof(uint16_t)*3);
+	memset(summary_buffer + sizeof(uint16_t),  1, sizeof(uint8_t));
+	memset(summary_buffer + sizeof(uint16_t) * 2,  2, sizeof(uint8_t));
+
 	// Write ifile, root directory, initial checkpoint region to LFS
-	void *total_buffer = malloc(sizeof_block * FLASH_SECTOR_SIZE * 3); 	// 3 blocks spaces. 
+	void *total_buffer = malloc(sizeof_block * FLASH_SECTOR_SIZE * (3 + size_seg_summary)); 	// 3 blocks spaces.
 	void *buffer_ptr = total_buffer;
+	memcpy(buffer_ptr, summary_buffer, size_seg_summary * sizeof_block * FLASH_SECTOR_SIZE);
+	buffer_ptr = total_buffer + sizeof_block * FLASH_SECTOR_SIZE * size_seg_summary;
 	memcpy(buffer_ptr, ifile_buffer, sizeof_block * FLASH_SECTOR_SIZE);
-	buffer_ptr = total_buffer + sizeof_block * FLASH_SECTOR_SIZE;		// next block
+	buffer_ptr = total_buffer + sizeof_block * FLASH_SECTOR_SIZE * (size_seg_summary + 1);		// next block
 	memcpy(buffer_ptr, root, sizeof(struct dir_entry) * 3 + sizeof(struct dir));
-	buffer_ptr = total_buffer + sizeof_block * FLASH_SECTOR_SIZE * 2;	// next block
+	buffer_ptr = total_buffer + sizeof_block * FLASH_SECTOR_SIZE * (size_seg_summary + 2);	// next block
 	memcpy(buffer_ptr, init_cp, sizeof(struct checkpoint_region));
-	Flash_Write(flash, sb_seg_size * sizeof_segment * sizeof_block, 3 * sizeof_block, total_buffer);
+	Flash_Write(flash, sb_seg_size * sizeof_segment * sizeof_block, (3 + size_seg_summary) * sizeof_block, total_buffer);
 
 	if (Flash_Close(flash) != 0) {
 		printf("ERROR: %s\n", strerror(errno));

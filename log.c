@@ -257,11 +257,19 @@ void updateInode(int inum, int block, struct addr *block_addr, int length) {
 		i_inode->ptrs[block].seg_num = block_addr->seg_num;
 		i_inode->ptrs[block].block_num = block_addr->block_num;
 	} else { // update indirect block address
+		printf("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ Writing indirect bolock .... with length %d \n", length);
 		// 1. Modify indirect block
 		void* indirect_blk = malloc(s_block_byte);
+		if(i_inode->indirect.seg_num == LFS_UNUSED_ADDR){
+			struct addr *address = malloc(sizeof(struct addr));
+			createIndirectBlock(inum, address);
+			i_inode->indirect.seg_num = address->seg_num;
+			i_inode->indirect.block_num = address->block_num;
+			free(address);
+		}
 		Log_Read(&(i_inode->indirect), s_block_byte, indirect_blk);
 		struct addr *t_indirect_blk = indirect_blk
-				+ (block * sizeof(struct inode));
+				+ (block * sizeof(struct addr));
 		t_indirect_blk->seg_num = block_addr->seg_num;
 		t_indirect_blk->block_num = block_addr->block_num;
 		// 2. Write indirect block to Flash
@@ -287,19 +295,30 @@ void updateInode(int inum, int block, struct addr *block_addr, int length) {
 }
 
 void getAddr(int inum, int i, struct addr *address) {
+	printf("$$$$$$$$$$$$$$$$$$GETTING ADDRESS OF FILE %d BLOCK %d\n",inum, i);
 	struct inode *node = malloc(sizeof(struct inode));
 	Read_Inode_in_Ifile(inum, node);
 	if (i < 4) {
 		address->seg_num = node->ptrs[i].seg_num;
 		address->block_num = node->ptrs[i].block_num;
 	} else {
-		void* indirect_blk = malloc(s_block_byte);
-		Log_Read(&(node->indirect), s_block_byte, indirect_blk);
-		struct addr *inode_addr = indirect_blk + i * sizeof(struct inode);
-		address->seg_num = inode_addr->seg_num;
-		address->block_num = inode_addr->block_num;
+		if(node->indirect.seg_num == LFS_UNUSED_ADDR){
+			address->seg_num = LFS_UNUSED_ADDR;
+			address->block_num = LFS_UNUSED_ADDR;
+		}else{
+			void* indirect_blk = malloc(s_block_byte);
+			Log_Read(&(node->indirect), s_block_byte, indirect_blk);
+			struct addr *inode_addr = indirect_blk + i * sizeof(struct addr);
+			address->seg_num = inode_addr->seg_num;
+			address->block_num = inode_addr->block_num;
+		}
 	}
 	free(node);
+}
+void createIndirectBlock(int inum, struct addr *address){
+	void* indirect_blk = malloc(s_block_byte);
+	memset(indirect_blk, 0xffff, s_block_byte);
+	Log_Write(inum, -1, s_block_byte, indirect_blk, address);
 }
 
 /*
@@ -313,19 +332,18 @@ void cleaner_start() {
 	if (free_segment_counter > 4)
 		return;
 	printf("Clean Engine STARTS>>>>>>>>>>>>>>>>>>>>>>>>\n");
-	int pointer = tail_seg->seg_num;
 	while (free_segment_counter < 8) {
-		if (needClean(pointer) == 0) {
-			cleaner(pointer);
-			printf(
-					"<><><><> -SEGMENT %d HAS BEEN CLEANED | FREE SEGMENTS: %d/%d\n",
-					pointer, free_segment_counter,
-					(int) lfs_sb->seg_num - SUPERBLOCK_SEG_SIZE);
+		if (needClean(cleaner_pointer) == 0) {
+			printf("<><><><> -SEGMENT %d HAS BEEN CLEANED | FREE SEGMENTS: %d/%d\n",
+								cleaner_pointer, free_segment_counter,
+								(int) lfs_sb->seg_num - SUPERBLOCK_SEG_SIZE);
+			cleaner(cleaner_pointer);
 		} else
 			printf("<><><><> -SEGMENT %d DONES'T NEED TO BE CLEANED\n",
-					pointer);
-		pointer++;
-		pointer %= lfs_sb->seg_num;
+					cleaner_pointer);
+		cleaner_pointer++;
+		cleaner_pointer %= lfs_sb->seg_num;
+		if(cleaner_pointer < SUPERBLOCK_SEG_SIZE) cleaner_pointer = SUPERBLOCK_SEG_SIZE;
 	}
 }
 void cleaner(int seg_num) {
@@ -362,6 +380,8 @@ int needClean(int seg_num) {
 	seg_addr->seg_num = seg_num;
 	seg_addr->block_num = 0;
 	Log_Read(seg_addr, s_segment_byte, segment);
+	uint16_t *temp = segment;
+	//printf("...........................%u\n", *temp);
 	//Disassemble blocks
 	for (int i = size_seg_summary; i < lfs_sb->seg_size; i++) {
 		int inum = get_block_inum(segment, i);
@@ -376,21 +396,31 @@ int needClean(int seg_num) {
 	}
 	return -1;
 }
+// Alive - 0;
 int isBlockAlive(int inum, struct addr *seg_addr) {
 	struct inode *node = malloc(sizeof(struct inode));
 	Read_Inode_in_Ifile(inum, node);
 	// Check direct pointers
 	for (int i = 0; i < 4; i++) {
-		if (isTwoAddressSame(seg_addr, &(node->ptrs[i])))
+		if (isTwoAddressSame(seg_addr, &(node->ptrs[i])) == 0)
 			return i;
 	}
 	// TODO check indirect pointers
-
+	for(int i = 4; i < s_block_byte / sizeof(struct addr); i ++){
+		struct addr *address = malloc(sizeof(struct addr));
+		getAddr(inum, i, address);
+		if (isTwoAddressSame(seg_addr, address) == 0){
+			free(address);
+			return i;
+		}
+		free(address);
+	}
 	// Return
 	return -1;
 
 }
 int isTwoAddressSame(struct addr *addr1, struct addr *addr2) {
+	printf("................COMPARING ADDRESSES %u %u AND %u %u\n", addr1->seg_num, addr1->block_num, addr2->seg_num, addr2->block_num);
 	if (addr1->seg_num != addr2->seg_num)
 		return -1;
 	if (addr1->block_num != addr2->block_num)
@@ -409,15 +439,17 @@ void init_seg_summary() {
 	int total = size_of_seg_cache * lfs_sb->b_size * FLASH_SECTOR_SIZE / 16;
 	uint16_t t = 0xffff;
 	for (int i = 0; i < total; i++) {
-		memcpy(tail_seg->blocks + i * 16, &t, sizeof(uint16_t));
+		memcpy(tail_seg->blocks + i * 2, &t, sizeof(uint16_t));
 	}
 	next_block_in_tail = size_seg_summary;
 }
 void set_seg_summary(int block_num, uint16_t inum) {
-	memcpy(tail_seg->blocks + block_num * 16, &inum, sizeof(inum));
+	memcpy(tail_seg->blocks + block_num * 2, &inum, sizeof(inum));
 }
 uint16_t get_block_inum(void* segment, int index) {
-	uint16_t inum = (uint16_t) (segment + index * sizeof(uint16_t));
+	uint16_t *temp = segment + index * sizeof(uint16_t);
+	uint16_t inum = *temp;
+	printf("\\\\\\\\ get block inum %d in summary table returns %u\n", index, inum);
 	return inum;
 }
 

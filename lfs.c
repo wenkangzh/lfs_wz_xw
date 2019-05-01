@@ -38,6 +38,8 @@ int SUPERBLOCK_SEG_SIZE;
 int start_clean;
 int stop_clean;
 
+int cleaner_pointer;
+
 /*
  *----------------------------------------------------------------------
  *
@@ -71,6 +73,9 @@ void init()
 
 	// Set Variable for size of superblock
 	SUPERBLOCK_SEG_SIZE = lfs_sb->sb_seg_num;
+
+	// Set starting pointer for cleaner
+	cleaner_pointer = SUPERBLOCK_SEG_SIZE;
 
 	// TODO - need to restore information in checkpoint region in memory.
 	cp_region = malloc(sizeof(struct checkpoint_region));
@@ -206,6 +211,7 @@ void print_inode(struct inode *inode)
 	printf("\t addr1: %u %u\n", inode->ptrs[1].seg_num, inode->ptrs[1].block_num);
 	printf("\t addr2: %u %u\n", inode->ptrs[2].seg_num, inode->ptrs[2].block_num);
 	printf("\t addr3: %u %u\n", inode->ptrs[3].seg_num, inode->ptrs[3].block_num);
+	printf("\t indirect: %u %u\n", inode->indirect.seg_num, inode->indirect.block_num);
 	printf("\t-----------------\n");
 }
 
