@@ -58,5 +58,61 @@
 		chmod 771 test
 		ls -l
 	~ Change the owner id
-		
+		chown wenkangzhou:everyone test
+
+5. Indirect block for files
+	~ Copy a large enough (around 130KB) file from outside
+		()
+
+----- RESTART -----
+
+6. Tail segment
+	~ Prepare:(Remember address of created file)
+		echo hello >> test
+	~ Read (Check read output with address of created file)
+		cat test
+	~ 
+		for i in {1..13} ; do cp test test$i ; done
+	~	
+		cat test
+
+
+7. Segment cache (For reading segments)
+	1. segment inserted to the cache
+		for i in {1..12}; do echo hello >> test; done
+		echo a >> a
+	2. retrieve segment from the cache
+		cat a
+	3. Access Order
+		Copy a large size file from outside, the system will need to access the destination directory file, must be a small seg number. 
+
+8. Cleaner & Segment summary table & Segment usage table
+
+9. Crash Recovery (Including normal persistant test)
+	~ Write some files
+		echo hello >> test
+		for i in {1..13} ; do cp test test$i ; done
+	~ Unmount the filesystem. 
+		cd .. ; umount a
+
+	~ Write some files
+		echo hello >> test
+		for i in {1..13} ; do cp test test$i ; done
+		cp test a 		// assume a new check point region is created after this one
+		mkdir d 		// this directory will not be here after recovery, since it is created after CP
+
+	~ Make filesystem crash
+
+	~ Load back filesystem and check files
+
+
+
+
+
+
+
+
+
+
+
 
