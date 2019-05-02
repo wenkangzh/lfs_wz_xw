@@ -25,6 +25,7 @@ extern int periodic_cp_interval;
 extern int size_seg_summary;
 extern int SUPERBLOCK_SEG_SIZE;
 extern int cleaner_pointer;
+extern char *flash_file_name;
 
 // #define LFS_SEG_TO_FLASH_SECTOR(lfs_seg_num, lfs_blk_in_seg, lfs_sector_in_blk) lfs_seg_num * lfs_blk_in_seg * lfs_sector_in_blk
 // #define LFS_ADDR_TO_FLASH_SECTOR(lfs_seg_num, lfs_blk_num, lfs_blk_in_seg, lfs_sector_in_blk) lfs_seg_num * lfs_blk_in_seg * lfs_sector_in_blk + lfs_blk_num * lfs_sector_in_blk

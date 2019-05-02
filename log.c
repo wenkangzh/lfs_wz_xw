@@ -127,7 +127,7 @@ int Log_Write(int inum, int block, int length, void* buffer,
 
 	int i = 0;
 	// check if tail_seg is full, TODO RESERVE 1 block for checkpoint region.
-	if (next_block_in_tail == lfs_sb->seg_size) {
+	if ((write_counter == periodic_cp_interval - 1 && next_block_in_tail + 1 == lfs_sb->seg_size) || next_block_in_tail == lfs_sb->seg_size) {
 		i = write_tail_seg_to_flash();
 	}
 
@@ -143,6 +143,15 @@ int Log_Write(int inum, int block, int length, void* buffer,
 }
 
 int write_tail_seg_to_flash() {
+	// Update segment usage table
+	update_segment_usage_table(tail_seg->seg_num, 1);
+
+	// Update Checkpoint region
+	write_counter++;
+	if (write_counter % periodic_cp_interval == 0) {
+		update_cp_region();
+		write_counter = 0;
+	}
 	int i;
 	printf("->=====\nTAIL SEGMENT HAS BEEN WRITTEN ONTO FLASH. %d %u\n=====\n", segNum_To_Sectors(tail_seg->seg_num),
 			lfs_sb->seg_size * lfs_sb->b_size);
@@ -152,16 +161,6 @@ int write_tail_seg_to_flash() {
 		printf("->ERROR: %s\n", strerror(errno));
 		return i;
 	}
-
-	// Update Checkpoint region
-	write_counter++;
-	if (write_counter % periodic_cp_interval == 0) {
-		update_cp_region();
-		write_counter = 0;
-	}
-
-	// Update segment usage table
-	update_segment_usage_table(tail_seg->seg_num, 1);
 
 	// Update free segment counts
 	free_segment_counter--;
@@ -179,6 +178,13 @@ int write_tail_seg_to_flash() {
 	// Initialize segment summary table
 	init_seg_summary();
 	print_inode(&(cp_region->ifile_inode));
+
+	if (Flash_Close(flash) != 0) {
+		printf("ERROR: %s\n", strerror(errno));
+	}
+
+	u_int *blocks_n = malloc(sizeof(u_int));
+	flash = Flash_Open(flash_file_name, FLASH_ASYNC, blocks_n);
 
 	return 0;
 }
