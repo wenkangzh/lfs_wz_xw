@@ -361,7 +361,7 @@ uint16_t assign_inum(const char *filename, uint16_t dir_inum)
 }
 
 void update_cp_region(){
-	// 1. write the most recent checkpoint region. 
+	// 1. write the most recent checkpoint region.
 	cp_region->last_seg_addr.seg_num = tail_seg->seg_num;
 	void *cp_buffer = malloc(s_block_byte);
 	memcpy(cp_buffer, cp_region, sizeof(struct checkpoint_region));
@@ -370,6 +370,12 @@ void update_cp_region(){
 	// Update Segment Usage Table
 	write_segment_usage_table();
 	printf("~~~~~~~~~~~~~~~A NEW CHECKPOINTING REGION HAS BEEN ESTABLISHED!~~~~~~~~~~~~~~~\n");
+
+	// 3. write superblock to flash.
+	void *sb_buffer = malloc(lfs_sb->seg_size * s_block_byte);
+	memcpy(sb_buffer, lfs_sb, sizeof(struct superblock));
+	Flash_Erase(flash, 0, lfs_sb->seg_size * lfs_sb->b_size / FLASH_SECTORS_PER_BLOCK);
+	Flash_Write(flash, 0, lfs_sb->seg_size * lfs_sb->b_size, sb_buffer);
 }
 
 /*
@@ -780,19 +786,21 @@ static void lfs_destroy(void* private_data){
 	// // block=0 is an exception for the situation.
 	// Log_Write(-1, 0, s_block_byte, cp_buffer, &(lfs_sb->checkpoint_addr));
 
+
+
+//	// 3. write superblock to flash.
+//	void *sb_buffer = malloc(lfs_sb->seg_size * s_block_byte);
+//	memcpy(sb_buffer, lfs_sb, sizeof(struct superblock));
+//	Flash_Erase(flash, 0, lfs_sb->seg_size * lfs_sb->b_size / FLASH_SECTORS_PER_BLOCK);
+//	Flash_Write(flash, 0, lfs_sb->seg_size * lfs_sb->b_size, sb_buffer);
+
 	// 2. write the tail segment.
 	write_tail_seg_to_flash();
 
-	// 3. write superblock to flash.
-	void *sb_buffer = malloc(lfs_sb->seg_size * s_block_byte);
-	memcpy(sb_buffer, lfs_sb, sizeof(struct superblock));
-	Flash_Erase(flash, 0, lfs_sb->seg_size * lfs_sb->b_size / FLASH_SECTORS_PER_BLOCK);
-	Flash_Write(flash, 0, lfs_sb->seg_size * lfs_sb->b_size, sb_buffer);
-
 	// Close the flash.
-	if (Flash_Close(flash) != 0) {
-		printf("ERROR: %s\n", strerror(errno));
-	}
+//	if (Flash_Close(flash) != 0) {
+//		printf("ERROR: %s\n", strerror(errno));
+//	}
 }
 
 
