@@ -42,8 +42,8 @@ int Log_Read(struct addr *logAddress, int length, void* buffer) {
 		void *block_to_copy = tail_seg->blocks
 				+ (lfs_sb->b_size * FLASH_SECTOR_SIZE)
 						* (logAddress->block_num);
-//		printf("->READING SEGMENT FROM {TAIL CACHE}, SEG_NUM: %u\n",
-//				tail_seg->seg_num);
+		printf("->READING SEGMENT FROM {TAIL CACHE}, SEG_NUM: %u\n",
+				tail_seg->seg_num);
 		memcpy(buffer, block_to_copy, (lfs_sb->b_size * FLASH_SECTOR_SIZE));
 		return 0;
 	}
