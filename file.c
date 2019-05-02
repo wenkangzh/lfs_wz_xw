@@ -135,15 +135,15 @@ int File_Write(int inum, int offset, int length, void *buffer)
 											(offset + data_written) % s_block_byte, 
 											remaining_length, 
 											buffer + data_written, isNewBlock	);
-		printf("########################### %d HAS BEEN WRITTEN TO FILE %d BLOCK %d\n", data_written, inum, i_blk);
+		//printf("########################### %d HAS BEEN WRITTEN TO FILE %d BLOCK %d\n", data_written, inum, i_blk);
 		remaining_length = length - data_written;
 		i_blk ++;
 		isNewBlock = 0;
 		// create a new block for appened data
 	}
-	printf("DATA WITH LENGTH OF %d HAS BEEN WRITTEN TO FILE %d\n", length, inum);
+	//printf("DATA WITH LENGTH OF %d HAS BEEN WRITTEN TO FILE %d\n", length, inum);
 	Read_Inode_in_Ifile(inum, inode_inum);
-	print_inode(inode_inum);
+	//print_inode(inode_inum);
 	return 0;
 }
 
@@ -168,7 +168,7 @@ int File_Write_Helper(struct inode *inode_inum, int block, int offset, int remai
 	}
 	// Write new data of block
 	struct addr * address = malloc(sizeof(struct addr));
-	printf("########################### CHANGE OF SIZE %d; WRITE LENGTH: %d; NEW BLOCK: %d; INODE SIZE: %d\n", change_of_size, write_length, isNewBlock, inode_inum->size);
+	//printf("########################### CHANGE OF SIZE %d; WRITE LENGTH: %d; NEW BLOCK: %d; INODE SIZE: %d\n", change_of_size, write_length, isNewBlock, inode_inum->size);
 	Log_Write(inode_inum->inum, block, change_of_size, block_data, address);
 	free(address);
 	return write_length;
@@ -269,7 +269,7 @@ int File_Free(int inum)
  *----------------------------------------------------------------------
  */
 void Read_Inode_in_Ifile(int inum_of_file, struct inode *inode_inum){
-	printf("$$$$$$$$$$READING INODE %d\n", inum_of_file);
+	//printf("$$$$$$$$$$READING INODE %d\n", inum_of_file);
 	void  *ifile_blk = malloc(s_block_byte);
 	int blk_in_ifile = (inum_of_file * sizeof(struct inode)) / s_block_byte;
 	struct addr *ifile_addr = malloc(sizeof(struct addr));

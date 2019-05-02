@@ -36,15 +36,15 @@ int free_segment_counter;
  *----------------------------------------------------------------------
  */
 int Log_Read(struct addr *logAddress, int length, void* buffer) {
-	printf("READING from %u %u\n", logAddress->seg_num, logAddress->block_num);
-	SC_print();
+	printf("->READING from %u %u\n", logAddress->seg_num, logAddress->block_num);
+	//SC_print();
 	// if the block we need to find is in the "tail" segment, just read from the tail cache.
 	if (logAddress->seg_num == tail_seg->seg_num) {
 		void *block_to_copy = tail_seg->blocks
 				+ (lfs_sb->b_size * FLASH_SECTOR_SIZE)
 						* (logAddress->block_num);
-		printf("READING SEGMENT FROM {TAIL CACHE}, SEG_NUM: %u\n",
-				tail_seg->seg_num);
+//		printf("->READING SEGMENT FROM {TAIL CACHE}, SEG_NUM: %u\n",
+//				tail_seg->seg_num);
 		memcpy(buffer, block_to_copy, (lfs_sb->b_size * FLASH_SECTOR_SIZE));
 		return 0;
 	}
@@ -57,9 +57,9 @@ int Log_Read(struct addr *logAddress, int length, void* buffer) {
 				+ (lfs_sb->b_size * FLASH_SECTOR_SIZE)
 						* (logAddress->block_num);
 		memcpy(buffer, block_to_copy, (lfs_sb->b_size * FLASH_SECTOR_SIZE));
-		printf(
-				">>>>>>>READING SEGMENT FROM SEGMENT {SEGMENT CACHE}, SEG_NUM: %u %s\n",
-				logAddress->seg_num, (char*) buffer);
+//		printf(
+//				">>>>>>>READING SEGMENT FROM SEGMENT {SEGMENT CACHE}, SEG_NUM: %u %s\n",
+//				logAddress->seg_num, (char*) buffer);
 		return 0;
 	}
 	free(buffer1);
@@ -71,7 +71,7 @@ int Log_Read(struct addr *logAddress, int length, void* buffer) {
 	void *temp = malloc(FLASH_SECTOR_SIZE * sector_n);
 	int i = Flash_Read(flash, sector_offset, sector_n, temp);
 	if (i == 1) {
-		printf("ERROR: %s\n", strerror(errno));
+		printf("->ERROR: %s\n", strerror(errno));
 		return i;
 	}
 	memcpy(buffer, temp, length);
@@ -100,13 +100,13 @@ int Log_Read(struct addr *logAddress, int length, void* buffer) {
 int Log_Write(int inum, int block, int length, void* buffer,
 		struct addr *logAddress) {
 	if (flash == NULL) {
-		printf("LOG_WRITE: Flash is not initialized!\n");
+		printf("->LOG_WRITE: Flash is not initialized!\n");
 		return -1;
 	}
 
 	// length validation for maximum size of block, 1024 bytes by default
 	if (length > lfs_sb->b_size * FLASH_SECTOR_SIZE) {
-		printf("LOG_WRITE: length too large.\n");
+		printf("->LOG_WRITE: length too large.\n");
 		return -1;
 	}
 
@@ -115,7 +115,7 @@ int Log_Write(int inum, int block, int length, void* buffer,
 
 	// insert into tail_seg
 	void *next_block = tail_seg->blocks + s_block_byte * next_block_in_tail;
-	// printf("HEAD: %p NEXT: %p, skipped %u\n", tail_seg->blocks, next_block, (lfs_sb->b_size * FLASH_SECTOR_SIZE) * next_block_in_tail);
+	// printf("->HEAD: %p NEXT: %p, skipped %u\n", tail_seg->blocks, next_block, (lfs_sb->b_size * FLASH_SECTOR_SIZE) * next_block_in_tail);
 	memcpy(next_block, buffer, s_block_byte);
 
 	// if Log_Write is used to write iFile, *logAddress is acutally the cp_region->ifile_inode.ptrs[i];
@@ -135,21 +135,21 @@ int Log_Write(int inum, int block, int length, void* buffer,
 	if (inum != LFS_IFILE_INUM && inum != -1 && block >= 0)
 		updateInode(inum, block, (logAddress), length);
 
-	printf("ADRESS OF NEW WRITTEN BLOCK IN LOG: %u %u \n", logAddress->seg_num,
+	printf("->A NEW BLOCK HAS BEEN WRITTEN IN LOG: %u %u \n", logAddress->seg_num,
 			logAddress->block_num);
 
-	SC_print();
+	//SC_print();
 	return i;
 }
 
 int write_tail_seg_to_flash() {
 	int i;
-	printf("WRITING TO FLASH. %d %u\n", segNum_To_Sectors(tail_seg->seg_num),
+	printf("->=====\nTAIL SEGMENT HAS BEEN WRITTEN ONTO FLASH. %d %u\n=====\n", segNum_To_Sectors(tail_seg->seg_num),
 			lfs_sb->seg_size * lfs_sb->b_size);
 	i = Flash_Write(flash, segNum_To_Sectors(tail_seg->seg_num),
 			lfs_sb->seg_size * lfs_sb->b_size, tail_seg->blocks);
 	if (i != 0) {
-		printf("ERROR: %s\n", strerror(errno));
+		printf("->ERROR: %s\n", strerror(errno));
 		return i;
 	}
 
@@ -168,16 +168,17 @@ int write_tail_seg_to_flash() {
 
 	// Update segment cache
 	if (SC_push() == -1)
-		printf("FAILED TO INSERT THIS SEGMENT INTO SEGMENT CACHE!\n");
-	else
-		printf(
-				"***************THIS SEGMENT HAS BEEN INSERTED IN SEGMENT CACHE!****************\n");
+		printf("->FAILED TO INSERT THIS SEGMENT INTO SEGMENT CACHE!\n");
+//	else
+//		printf(
+//				"***************THIS SEGMENT HAS BEEN INSERTED IN SEGMENT CACHE!****************\n");
 
 	findNextAvailbleSegment(); // TODO get next segment number from most recent checkpoint region.
 	memset(tail_seg->blocks, 0,
 			lfs_sb->seg_size * lfs_sb->b_size * FLASH_SECTOR_SIZE);
 	// Initialize segment summary table
 	init_seg_summary();
+	print_inode(&(cp_region->ifile_inode));
 
 	return 0;
 }
@@ -189,9 +190,9 @@ void findNextAvailbleSegment() {
 		ptr = ptr + pointer;
 		if (*ptr == 0) {
 			tail_seg->seg_num = pointer;
-			printf(
-					"SCREENING SEGMENT %d FOUND FOR NEXT AVAILABLE SEGMENT! - ATTEMPTS: %u\n",
-					pointer, *ptr);
+//			printf(
+//					"SCREENING SEGMENT %d FOUND FOR NEXT AVAILABLE SEGMENT! - ATTEMPTS: %u\n",
+//					pointer, *ptr);
 			return;
 		}
 		pointer++;
@@ -236,8 +237,8 @@ int Log_Free(struct addr *logAddress, int length) {
  */
 // update the block in the ifile, return the block
 void updateInode(int inum, int block, struct addr *block_addr, int length) {
-	printf("UPDATING INODE OF FILE %d WITH SEG_NUM: %u AND BLOCK_NUM: %u\n",
-			inum, block_addr->seg_num, block_addr->block_num);
+	printf("->UPDATING INODE OF BLOCK %d FILE %d WITH SEG_NUM: %u AND BLOCK_NUM: %u\n",
+			block, inum, block_addr->seg_num, block_addr->block_num);
 	// 1. Find the block in ifile where the inode locates.
 	void *buffer = malloc(lfs_sb->b_size * FLASH_SECTOR_SIZE);
 	// find the block number of ifile:
@@ -246,7 +247,7 @@ void updateInode(int inum, int block, struct addr *block_addr, int length) {
 	// read the necessary file block from ifile for reading the inode given the inum
 	if (Log_Read(&cp_region->ifile_inode.ptrs[blk_num],
 			lfs_sb->b_size * FLASH_SECTOR_SIZE, buffer) == -1) { // get data of the ifile block
-		printf("updateInode: Failed to read target block of iFile.\n");
+		printf("->updateInode: Failed to read target block of iFile.\n");
 	}
 	// 2. Find inode with inum in ifile.
 	int offset = inum * sizeof(struct inode) % s_block_byte;
@@ -257,7 +258,7 @@ void updateInode(int inum, int block, struct addr *block_addr, int length) {
 		i_inode->ptrs[block].seg_num = block_addr->seg_num;
 		i_inode->ptrs[block].block_num = block_addr->block_num;
 	} else { // update indirect block address
-		printf("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ Writing indirect bolock .... with length %d \n", length);
+		//printf("->$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ Writing indirect bolock .... with length %d \n", length);
 		// 1. Modify indirect block
 		void* indirect_blk = malloc(s_block_byte);
 		if(i_inode->indirect.seg_num == LFS_UNUSED_ADDR){
@@ -290,12 +291,12 @@ void updateInode(int inum, int block, struct addr *block_addr, int length) {
 			cp_region->ifile_inode.size < (inum + 1) * sizeof(struct inode) ?
 					(inum + 1) * sizeof(struct inode) :
 					cp_region->ifile_inode.size;
-	printf("iFile has been updated with FILE %d :\n", inum);
-	print_inode(&(cp_region->ifile_inode));
+	//printf("->iFile has been updated with FILE %d :\n", inum);
+	//print_inode(&(cp_region->ifile_inode));
 }
 
 void getAddr(int inum, int i, struct addr *address) {
-	printf("$$$$$$$$$$$$$$$$$$GETTING ADDRESS OF FILE %d BLOCK %d\n",inum, i);
+	//printf("->$$$$$$$$$$$$$$$$$$GETTING ADDRESS OF FILE %d BLOCK %d\n",inum, i);
 	struct inode *node = malloc(sizeof(struct inode));
 	Read_Inode_in_Ifile(inum, node);
 	if (i < 4) {
@@ -331,16 +332,17 @@ void createIndirectBlock(int inum, struct addr *address){
 void cleaner_start() {
 	if (free_segment_counter > 4)
 		return;
-	printf("Clean Engine STARTS>>>>>>>>>>>>>>>>>>>>>>>>\n");
+	printf("->SEGMENT CLEAN ENGINE ACTIVATED...\n");
 	while (free_segment_counter < 8) {
 		if (needClean(cleaner_pointer) == 0) {
-			printf("<><><><> -SEGMENT %d HAS BEEN CLEANED | FREE SEGMENTS: %d/%d\n",
+			printf("->\tSEGMENT %d HAS BEEN CLEANED ...... %d/%d\n",
 								cleaner_pointer, free_segment_counter,
 								(int) lfs_sb->seg_num - SUPERBLOCK_SEG_SIZE);
 			cleaner(cleaner_pointer);
-		} else
-			printf("<><><><> -SEGMENT %d DONES'T NEED TO BE CLEANED\n",
-					cleaner_pointer);
+		}
+//		else
+//			printf("-><><><><> -SEGMENT %d DONES'T NEED TO BE CLEANED\n",
+//					cleaner_pointer);
 		cleaner_pointer++;
 		cleaner_pointer %= lfs_sb->seg_num;
 		if(cleaner_pointer < SUPERBLOCK_SEG_SIZE) cleaner_pointer = SUPERBLOCK_SEG_SIZE;
@@ -380,8 +382,7 @@ int needClean(int seg_num) {
 	seg_addr->seg_num = seg_num;
 	seg_addr->block_num = 0;
 	Log_Read(seg_addr, s_segment_byte, segment);
-	uint16_t *temp = segment;
-	//printf("...........................%u\n", *temp);
+	//printf("->...........................%u\n", *temp);
 	//Disassemble blocks
 	for (int i = size_seg_summary; i < lfs_sb->seg_size; i++) {
 		int inum = get_block_inum(segment, i);
@@ -420,7 +421,7 @@ int isBlockAlive(int inum, struct addr *seg_addr) {
 
 }
 int isTwoAddressSame(struct addr *addr1, struct addr *addr2) {
-	printf("................COMPARING ADDRESSES %u %u AND %u %u\n", addr1->seg_num, addr1->block_num, addr2->seg_num, addr2->block_num);
+	//printf("->................COMPARING ADDRESSES %u %u AND %u %u\n", addr1->seg_num, addr1->block_num, addr2->seg_num, addr2->block_num);
 	if (addr1->seg_num != addr2->seg_num)
 		return -1;
 	if (addr1->block_num != addr2->block_num)
@@ -449,7 +450,7 @@ void set_seg_summary(int block_num, uint16_t inum) {
 uint16_t get_block_inum(void* segment, int index) {
 	uint16_t *temp = segment + index * sizeof(uint16_t);
 	uint16_t inum = *temp;
-	printf("\\\\\\\\ get block inum %d in summary table returns %u\n", index, inum);
+	//printf("->\\\\\\\\ get block inum %d in summary table returns %u\n", index, inum);
 	return inum;
 }
 
@@ -466,13 +467,13 @@ void load_segment_usage_table() {
 	Log_Read(&(lfs_sb->seg_usage_table_addr), lfs_sb->seg_num, segUsageTable);
 	for (int i = SUPERBLOCK_SEG_SIZE; i < lfs_sb->seg_num; i++) {
 		uint8_t *temp = segUsageTable + i;
-		printf("++++++%u\n", *temp);
+		//printf("->++++++%u\n", *temp);
 		if (*temp == 0)
 			free_segment_counter++;
 	}
-	printf("............................Available Free Segments: %d/%d\n",
-			free_segment_counter,
-			(int) (lfs_sb->seg_num) - SUPERBLOCK_SEG_SIZE);
+//	printf("->............................Available Free Segments: %d/%d\n",
+//			free_segment_counter,
+//			(int) (lfs_sb->seg_num) - SUPERBLOCK_SEG_SIZE);
 }
 void update_segment_usage_table(int seg_num, int isUnvailble) {
 	memset(segUsageTable + seg_num, isUnvailble, sizeof(uint8_t));
@@ -527,7 +528,7 @@ int LFS_SEG(int x) {
  */
 int Seg_Cache_init(int N) {
 	if (N < 1) {
-		printf("ERROR: Max size of segment cache must be greater than 0!\n");
+		printf("->ERROR: Max size of segment cache must be greater than 0!\n");
 		return -1;
 	}
 	max_size_seg_cache = N;
@@ -549,14 +550,13 @@ void SC_trim() {
 		size_of_seg_cache--;
 		tail->prev = tail->prev->prev;
 		tail->prev->next = tail;
-		printf(
-				">>>>>>>A SEGMENT HAS BEEN POPPED OUT FROM {SEGMENT CACHE}: %u!\n",
+		printf("->/tSEGMENT %u HAS BEEN REMOVED FROM {SEGMENT CACHE)!\n",
 				tail->prev->seg_num);
 	}
 }
 // Insert a segment onto linkedlist
 int SC_push() {
-	printf(">>>>>>>PUSHING A SEGMENT INTO {SEGMENT CACHE}: %u!\n",
+	printf("->SEGMENT %u IS PUSHED INTO {SEGMENT CACHE}!\n",
 			tail_seg->seg_num);
 	// Init a new LinkedList node
 	struct LinkedList *list_node = malloc(sizeof(struct LinkedList));
@@ -576,7 +576,6 @@ int SC_push() {
 }
 // Get a segment from linkedlist with a given address
 int SC_get(uint16_t segment_num, void *buffer) {
-	printf(">>>>>>>GETTING A SEGMENT FROM {SEGMENT CACHE}: %u\n", segment_num);
 	struct LinkedList *ptr = head->next;
 	while (ptr->seg_num != LFS_UNUSED_ADDR) {
 		if (ptr->seg_num == segment_num) {
@@ -591,7 +590,7 @@ int SC_get(uint16_t segment_num, void *buffer) {
 			// Promote ptr onto head
 			head->next->prev = ptr;
 			head->next = ptr;
-			printf(">>>>>>>RETURNING OUT A SEGMENT FROM {SEGMENT CACHE}: %u!\n",
+			printf("->\tSEGMENT %u HAS BEEN RETRIEVED FROM {SEGMENT CACHE}!\n",
 					ptr->seg_num);
 			return 0;
 		}
@@ -601,14 +600,14 @@ int SC_get(uint16_t segment_num, void *buffer) {
 }
 
 void SC_print() {
-	printf("\t----- SEGMENT CACHE STATUS -----\n");
+	printf("->\t----- SEGMENT CACHE STATUS -----\n");
 	struct LinkedList *ptr = head->next;
 	int counter = 0;
 	while (ptr->seg_num != LFS_UNUSED_ADDR) {
-		printf("\t NUM: %d \t: SEG_NUM: %u \n", counter, ptr->seg_num);
+		printf("->\t NUM: %d \t: SEG_NUM: %u \n", counter, ptr->seg_num);
 		ptr = ptr->next;
 		counter++;
 	}
-	printf("\t--------------------------------\n");
+	printf("->\t--------------------------------\n");
 }
 
