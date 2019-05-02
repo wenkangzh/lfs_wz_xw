@@ -1,0 +1,62 @@
+1. File manipulation. 
+	~ File write:	
+			echo hello >> test
+			ls
+	~ File write intensively:
+			for i in {1..20} ; do echo hello >> test ; done
+	~ File read:
+			cat test
+	~ Rename the file:
+			mv test test1
+			ls
+	~ Delete file:
+			rm test1
+			ls
+
+2. Directory manipulation
+	~ Make directory:
+			mkdir dir
+			ls
+	~ Remove directory:
+			rmdir dir
+	~ Write file in directory other than root
+			mkdir dir
+			cd dir
+			echo hello >> test
+			cat test
+	~ Try to remove directory when directory is not empty:
+			rmdir dir
+	~ Then delete file first then remove directory:
+			rm dir/test
+			rmdir dir
+
+3. Symbolic & Hard Links
+	~ Prepare
+			echo hello >> test
+	~ Create a symbolic link
+			ln -s test test1
+	~ Create a hard link
+			link test test2
+	~ Remove the initial file
+			rm test
+	~ Check if the symbolic link work:
+			cat test1
+	~ Remove the symbolic link:
+			rm test1
+			ls
+	~ Check if the hard link work:
+			cat test2
+	~ Remove the hard link:
+			rm test2
+			ls
+
+4. chmod / chown
+	~ Prepare:
+		echo hello >> test
+		ls -l
+	~ Change the file permission
+		chmod 771 test
+		ls -l
+	~ Change the owner id
+		
+
