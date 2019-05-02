@@ -418,6 +418,8 @@ static int lfs_getattr(const char* path, struct stat* stbuf){
     	stbuf->st_mtime = inode->lst_mdf;
     	stbuf->st_nlink = inode->n_links; 
     	stbuf->st_ino = inode->inum;
+    	stbuf->st_uid = inode->uid;
+    	stbuf->st_gid = inode->gid;
     }
 
     printf("~~~MODE: %lo\n", (long unsigned int) stbuf->st_mode);
@@ -811,6 +813,12 @@ static int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi){
 	File_Create(inum, LFS_FILE_TYPE_FILE);
 	struct inode *temp = malloc(sizeof(struct inode));
 	Read_Inode_in_Ifile(inum, temp);
+
+	// get the current uid and gid.
+	struct fuse_context *context = fuse_get_context();
+	temp->uid = context->uid;
+	temp->gid = context->gid;
+	write_inode_in_ifile(inum, temp);
 	print_inode(temp);
 	return 0;
 }
@@ -977,7 +985,16 @@ static int lfs_chmod(const char* path, mode_t mode){
  *
  *----------------------------------------------------------------------
  */
-static int lfs_chown(const char* path, uid_t uid, gid_t gid){return 0;}
+static int lfs_chown(const char* path, uid_t uid, gid_t gid){
+	printf("===== lfs_chown(%s) \n", path);
+	uint16_t inum = inum_lookup(path);
+	struct inode *inode = malloc(sizeof(struct inode));
+	Read_Inode_in_Ifile(inum, inode);
+	inode->uid = uid;
+	inode->gid = gid;
+	write_inode_in_ifile(inum, inode);
+	return 0;
+}
 
 
 /*

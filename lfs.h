@@ -50,12 +50,14 @@ struct inode{
 	uint16_t inum;							// inum
 	uint16_t type;							// type of the file, file or directory
 	mode_t mode;							// mode of the file
+	uid_t uid;								// user id
+	gid_t gid; 								// group id
 	time_t lst_mdf;							// last modification time
 	uint16_t n_links;						// # of hard links
 	int size;								// size of the file.
 	struct addr ptrs[4];
 	struct addr indirect;					// Pointer to indirect block
-	char padding[14];
+	char padding[6];
 };
 
 struct checkpoint_region{
