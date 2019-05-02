@@ -37,7 +37,6 @@ int free_segment_counter;
  */
 int Log_Read(struct addr *logAddress, int length, void* buffer) {
 	printf("->READING from %u %u\n", logAddress->seg_num, logAddress->block_num);
-	//SC_print();
 	// if the block we need to find is in the "tail" segment, just read from the tail cache.
 	if (logAddress->seg_num == tail_seg->seg_num) {
 		void *block_to_copy = tail_seg->blocks
@@ -60,21 +59,40 @@ int Log_Read(struct addr *logAddress, int length, void* buffer) {
 //		printf(
 //				">>>>>>>READING SEGMENT FROM SEGMENT {SEGMENT CACHE}, SEG_NUM: %u %s\n",
 //				logAddress->seg_num, (char*) buffer);
+		SC_print();
 		return 0;
 	}
 	free(buffer1);
 
-	u_int sector_offset = logAddr_To_Sectors(logAddress);
-	// before calling Flash_Read, need to get buffer in Flash_Read enough space to read in.
-	u_int sector_n = length / FLASH_SECTOR_SIZE
-			+ (length % FLASH_SECTOR_SIZE == 0 ? 0 : 1);
+//	u_int sector_offset = logAddr_To_Sectors(logAddress);
+//	// before calling Flash_Read, need to get buffer in Flash_Read enough space to read in.
+//	u_int sector_n = length / FLASH_SECTOR_SIZE
+//			+ (length % FLASH_SECTOR_SIZE == 0 ? 0 : 1);
+//	void *temp = malloc(FLASH_SECTOR_SIZE * sector_n);
+//	int i = Flash_Read(flash, sector_offset, sector_n, temp);
+//	if (i == 1) {
+//		printf("->ERROR: %s\n", strerror(errno));
+//		return i;
+//	}
+
+	struct addr *address = malloc(sizeof(struct addr));
+	address->seg_num = logAddress->seg_num;
+	address->block_num = 0;
+	u_int sector_offset = logAddr_To_Sectors(address);
+	//before calling Flash_Read, need to get buffer in Flash_Read enough space to read in.
+	u_int sector_n = lfs_sb->seg_size * lfs_sb->b_size;
 	void *temp = malloc(FLASH_SECTOR_SIZE * sector_n);
 	int i = Flash_Read(flash, sector_offset, sector_n, temp);
 	if (i == 1) {
 		printf("->ERROR: %s\n", strerror(errno));
 		return i;
 	}
-	memcpy(buffer, temp, length);
+	void *t = temp + logAddress->block_num * lfs_sb->b_size * FLASH_SECTOR_SIZE;
+
+	memcpy(buffer, t, length);
+	SC_push_new_seg(logAddress->seg_num, temp);
+	SC_print();
+	free(temp);
 	// when returning the buffer as a read result, need to fix the size of buffer to be length
 	return i;
 }
@@ -168,6 +186,7 @@ int write_tail_seg_to_flash() {
 	// Update segment cache
 	if (SC_push() == -1)
 		printf("->FAILED TO INSERT THIS SEGMENT INTO SEGMENT CACHE!\n");
+	SC_print();
 //	else
 //		printf(
 //				"***************THIS SEGMENT HAS BEEN INSERTED IN SEGMENT CACHE!****************\n");
@@ -570,6 +589,26 @@ int SC_push() {
 	list_node->segment = malloc(
 			lfs_sb->seg_size * lfs_sb->b_size * FLASH_SECTOR_SIZE);
 	memcpy(list_node->segment, tail_seg->blocks,
+			lfs_sb->seg_size * lfs_sb->b_size * FLASH_SECTOR_SIZE);
+	// Push onto top
+	list_node->prev = head;
+	list_node->next = head->next;
+	head->next->prev = list_node;
+	head->next = list_node;
+	size_of_seg_cache++;
+	SC_trim();
+	return 0;
+}
+
+int SC_push_new_seg(uint16_t seg_num, void* segment){
+	printf("->SEGMENT %u IS PUSHED INTO {SEGMENT CACHE}!\n",
+			tail_seg->seg_num);
+	// Init a new LinkedList node
+	struct LinkedList *list_node = malloc(sizeof(struct LinkedList));
+	list_node->seg_num = seg_num;
+	list_node->segment = malloc(
+			lfs_sb->seg_size * lfs_sb->b_size * FLASH_SECTOR_SIZE);
+	memcpy(list_node->segment, segment,
 			lfs_sb->seg_size * lfs_sb->b_size * FLASH_SECTOR_SIZE);
 	// Push onto top
 	list_node->prev = head;
