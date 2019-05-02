@@ -73,6 +73,7 @@ int LFS_SEG(int x);
 int Seg_Cache_init(int N);
 void SC_trim();
 int SC_push();
+int SC_push_new_seg(uint16_t seg_num, void* segment);
 int SC_get(uint16_t segment_num, void *buffer);
 void SC_print();
 #endif
